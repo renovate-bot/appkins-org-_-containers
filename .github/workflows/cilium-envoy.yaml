@@ -1,4 +1,4 @@
-name: Build and Release Charts Pages and OCI
+name: Build and Release Cilium Envoy Proxy Image
 
 on:
   workflow_dispatch:

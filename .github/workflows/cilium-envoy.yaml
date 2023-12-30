@@ -1,0 +1,48 @@
+name: Build and Release Charts Pages and OCI
+
+on:
+  workflow_dispatch:
+
+jobs:
+  release:
+    name: Release Helm charts
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+      id-token: write
+      packages: write
+      pages: write
+
+    defaults:
+      run:
+        shell: bash
+    steps:
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@f95db51fddba0c2d1ec667646a06c2ce06100226 # v3.0.0
+
+      - name: Login to OCI registry
+        uses: docker/login-action@343f7c4344506bcbf9b4de18042ae17996df046d # v3.0.0
+        with:
+          registry: ghcr.io
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Checkout
+        uses: actions/checkout@b4ffde65f46336ab88eb53be808477a3936bae11 # v4.1.1
+        with:
+          repository: cilium/proxy
+          fetch-depth: 0
+
+      - name: Set up QEMU
+        uses: docker/setup-qemu-action@v3
+
+      - name: Build and push
+        uses: docker/build-push-action@v5
+        with:
+          push: true
+          context: "."
+          file: ./Dockerfile
+          platforms: linux/amd64,linux/arm64
+          build-args: |
+            BAZEL_BUILD_OPTS="--jobs=HOST_CPUS*.75 --define tcmalloc=gperftools"
+          tags: ${{ github.sha }}:latest

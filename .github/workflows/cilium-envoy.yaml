@@ -5,6 +5,7 @@ on:
 
 jobs:
   release:
+    timeout-minutes: 360
     name: Release Helm charts
     runs-on: ubuntu-latest
     permissions:
@@ -43,6 +44,17 @@ jobs:
           echo "BAZEL_VERSION=$(cat .bazelversion)" >> $GITHUB_ENV
           echo "BUILDER_DOCKER_HASH=$(git ls-tree --full-tree HEAD -- ./Dockerfile.builder.tests | awk '{ print $3 }')" >> $GITHUB_ENV
 
+      - name: Cache Docker layers
+        uses: actions/cache@704facf57e6136b1bc63b828d79edcd491f0ee84 # v3.3.2
+        with:
+          path: /tmp/buildx-cache
+          key: docker-cache-${{ github.ref_name }}
+  
+      - name: Clear cache
+        run: |
+          rm -rf /tmp/buildx-cache/*
+          docker buildx prune -f
+      
       - name: Multi-arch build & push master latest
         uses: docker/build-push-action@4a13e500e55cf31b7a5d59a38ab2040ab0f42f56 # v5.1.0
         with:

@@ -7,7 +7,7 @@ jobs:
   release:
     timeout-minutes: 360
     name: Build cache and push images
-    runs-on: ubuntu-latest-64-cores-256gb
+    runs-on: ubuntu-latest
     permissions:
       contents: write
       id-token: write

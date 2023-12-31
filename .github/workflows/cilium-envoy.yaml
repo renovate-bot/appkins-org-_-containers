@@ -46,7 +46,7 @@ jobs:
           echo "ENVOY_MINOR_RELEASE=$(cat ENVOY_VERSION | sed 's/envoy-\([0-9]\+\.[0-9]\+\)\..*/v\1/')" >> $GITHUB_ENV
           echo "ENVOY_PATCH_RELEASE=$(cat ENVOY_VERSION | sed 's/^envoy-\([0-9]\+\.[0-9]\+\.[0-9]\+$\)/v\1/')" >> $GITHUB_ENV
           echo "BAZEL_VERSION=$(cat .bazelversion)" >> $GITHUB_ENV
-          echo "BUILDER_DOCKER_HASH=$(git ls-tree --full-tree HEAD -- ./Dockerfile.builder.tests | awk '{ print $3 }')" >> $GITHUB_ENV
+          echo "BUILDER_DOCKER_HASH=$(git ls-tree --full-tree HEAD -- ./Dockerfile.builder | awk '{ print $3 }')" >> $GITHUB_ENV
 
       - name: Cache Docker layers
         uses: actions/cache@704facf57e6136b1bc63b828d79edcd491f0ee84 # v3.3.2

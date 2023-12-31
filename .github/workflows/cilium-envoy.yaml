@@ -44,10 +44,10 @@ jobs:
           echo "BAZEL_VERSION=$(cat .bazelversion)" >> $GITHUB_ENV
           echo "BUILDER_DOCKER_HASH=$(git ls-tree --full-tree HEAD -- ./Dockerfile.builder.tests | awk '{ print $3 }')" >> $GITHUB_ENV
 
-      - name: Build and push
-        uses: docker/build-push-action@v5
+      - name: Multi-arch build & push master latest
+        uses: docker/build-push-action@4a13e500e55cf31b7a5d59a38ab2040ab0f42f56 # v5.1.0
         with:
-          push: true
+          provenance: false
           context: "."
           file: ./Dockerfile
           platforms: linux/amd64,linux/arm64
@@ -57,6 +57,7 @@ jobs:
             COPY_CACHE_EXT=.new
             BAZEL_BUILD_OPTS="--remote_upload_local_results=false --define tcmalloc=gperftools"
           cache-to: type=local,dest=/tmp/buildx-cache,mode=max
+          push: true
           tags: |
             ghcr.io/${{ github.repository }}/cilium-envoy:latest
             ghcr.io/${{ github.repository }}/cilium-envoy:${{ github.sha }}

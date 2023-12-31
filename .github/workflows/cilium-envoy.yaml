@@ -53,7 +53,7 @@ jobs:
       - name: Clear cache
         run: |
           rm -rf /tmp/buildx-cache/*
-          docker buildx prune -f
+          docker buildx prune -f || exit 0
       
       - name: Multi-arch build & push master latest
         uses: docker/build-push-action@4a13e500e55cf31b7a5d59a38ab2040ab0f42f56 # v5.1.0

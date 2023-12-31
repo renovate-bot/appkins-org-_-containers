@@ -54,7 +54,7 @@ jobs:
             BUILDER_BASE=quay.io/cilium/cilium-envoy-builder:${{ env.BAZEL_VERSION }}-latest
             ARCHIVE_IMAGE=quay.io/cilium/cilium-envoy-builder:main-archive-latest
             COPY_CACHE_EXT=.new
-            BAZEL_BUILD_OPTS="--remote_upload_local_results=false --tcmalloc=gperftools"
+            BAZEL_BUILD_OPTS=--define tcmalloc=gperftools --remote_upload_local_results=false
           cache-to: type=local,dest=/tmp/buildx-cache,mode=max
           push: true
           tags: |

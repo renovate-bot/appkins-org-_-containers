@@ -6,12 +6,14 @@ on:
 jobs:
   release:
     timeout-minutes: 360
-    name: Release Helm charts
-    runs-on: ubuntu-latest
+    name: Build cache and push images
+    runs-on: ubuntu-latest-64-cores-256gb
     permissions:
       contents: write
       id-token: write
       packages: write
+    env:
+      SOURCE_REF: f19708f3d0188fe39b7e024b4525b75a9eeee61f
     steps:
       - name: Set up Docker Buildx
         uses: docker/setup-buildx-action@f95db51fddba0c2d1ec667646a06c2ce06100226 # v3.0.0
@@ -33,11 +35,13 @@ jobs:
         uses: actions/checkout@b4ffde65f46336ab88eb53be808477a3936bae11 # v4.1.1
         with:
           repository: cilium/proxy
-          ref: v1.26
+          ref: ${{ env.SOURCE_REF }}
           persist-credentials: false
-
+      
       - name: Prep for build
-        run: | # docker pull thegrandpkizzle/envoy:1.26.1
+        run: |
+          echo "SOURCE_SHA=$(git rev-parse HEAD)" >> $GITHUB_ENV
+          echo "SOURCE_BRANCH=$(git rev-parse --abbrev-ref HEAD)" >> $GITHUB_ENV
           git rev-parse HEAD > SOURCE_VERSION
           echo "ENVOY_MINOR_RELEASE=$(cat ENVOY_VERSION | sed 's/envoy-\([0-9]\+\.[0-9]\+\)\..*/v\1/')" >> $GITHUB_ENV
           echo "ENVOY_PATCH_RELEASE=$(cat ENVOY_VERSION | sed 's/^envoy-\([0-9]\+\.[0-9]\+\.[0-9]\+$\)/v\1/')" >> $GITHUB_ENV
@@ -48,7 +52,7 @@ jobs:
         uses: actions/cache@704facf57e6136b1bc63b828d79edcd491f0ee84 # v3.3.2
         with:
           path: /tmp/buildx-cache
-          key: docker-cache-${{ github.ref_name }}
+          key: docker-cache-${{ env.SOURCE_BRANCH }}
   
       - name: Clear cache
         run: |
@@ -56,23 +60,21 @@ jobs:
           docker buildx prune -f || exit 0
       
       - name: Multi-arch build & push master latest
-        uses: docker/build-push-action@4a13e500e55cf31b7a5d59a38ab2040ab0f42f56 # v5.1.0
+        uses: docker/build-push-action@0565240e2d4ab88bba5387d719585280857ece09 # v5.0.0
         with:
           provenance: false
           context: "."
           file: ./Dockerfile
           platforms: linux/amd64,linux/arm64
           build-args: |
-            BUILDER_BASE=quay.io/cilium/cilium-envoy-builder:${{ env.BAZEL_VERSION }}-latest
+            BUILDER_BASE=quay.io/cilium/cilium-envoy-builder:${{ env.BAZEL_VERSION }}-${{ env.BUILDER_DOCKER_HASH}}
             ARCHIVE_IMAGE=quay.io/cilium/cilium-envoy-builder:main-archive-latest
-            BAZEL_BUILD_OPTS=--define tcmalloc=gperftools --remote_upload_local_results=false
-          #  COPY_CACHE_EXT=.new
-          # cache-to: type=local,dest=/tmp/buildx-cache,mode=max
+            BAZEL_BUILD_OPTS=--remote_upload_local_results=false --define tcmalloc=gperftools
+            COPY_CACHE_EXT=.new
+          cache-to: type=local,dest=/tmp/buildx-cache,mode=max
           push: true
           tags: |
             ghcr.io/${{ github.repository }}/cilium-envoy:latest
-            ghcr.io/${{ github.repository }}/cilium-envoy:${{ github.sha }}
-            ghcr.io/${{ github.repository }}/cilium-envoy:${{ env.ENVOY_MINOR_RELEASE }}
-            ghcr.io/${{ github.repository }}/cilium-envoy:${{ env.ENVOY_PATCH_RELEASE }}
-            ghcr.io/${{ github.repository }}/cilium-envoy:${{ env.ENVOY_MINOR_RELEASE }}-${{ github.sha }}
-            ghcr.io/${{ github.repository }}/cilium-envoy:${{ env.ENVOY_PATCH_RELEASE }}-${{ github.sha }}
+            ghcr.io/${{ github.repository }}/cilium-envoy:${{ env.SOURCE_SHA }}
+            ghcr.io/${{ github.repository }}/cilium-envoy:${{ env.ENVOY_MINOR_RELEASE }}-${{ env.SOURCE_SHA }}
+            ghcr.io/${{ github.repository }}/cilium-envoy:${{ env.ENVOY_PATCH_RELEASE }}-${{ env.SOURCE_SHA }}

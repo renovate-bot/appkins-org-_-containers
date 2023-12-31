@@ -32,13 +32,12 @@ jobs:
         uses: actions/checkout@b4ffde65f46336ab88eb53be808477a3936bae11 # v4.1.1
         with:
           repository: cilium/proxy
-          ref: main
+          ref: v1.26
           persist-credentials: false
 
       - name: Prep for build
         run: |
-          echo "SOURCE_VERSION=$(git rev-parse HEAD)" >> $GITHUB_ENV
-          echo "$SOURCE_VERSION" > SOURCE_VERSION
+          git rev-parse HEAD > SOURCE_VERSION
           echo "ENVOY_MINOR_RELEASE=$(cat ENVOY_VERSION | sed 's/envoy-\([0-9]\+\.[0-9]\+\)\..*/v\1/')" >> $GITHUB_ENV
           echo "ENVOY_PATCH_RELEASE=$(cat ENVOY_VERSION | sed 's/^envoy-\([0-9]\+\.[0-9]\+\.[0-9]\+$\)/v\1/')" >> $GITHUB_ENV
           echo "BAZEL_VERSION=$(cat .bazelversion)" >> $GITHUB_ENV
@@ -61,5 +60,7 @@ jobs:
           tags: |
             ghcr.io/${{ github.repository }}/cilium-envoy:latest
             ghcr.io/${{ github.repository }}/cilium-envoy:${{ github.sha }}
+            ghcr.io/${{ github.repository }}/cilium-envoy:${{ env.ENVOY_MINOR_RELEASE }}
+            ghcr.io/${{ github.repository }}/cilium-envoy:${{ env.ENVOY_PATCH_RELEASE }}
             ghcr.io/${{ github.repository }}/cilium-envoy:${{ env.ENVOY_MINOR_RELEASE }}-${{ github.sha }}
             ghcr.io/${{ github.repository }}/cilium-envoy:${{ env.ENVOY_PATCH_RELEASE }}-${{ github.sha }}

@@ -29,6 +29,11 @@ jobs:
           ref: main
           persist-credentials: false
 
+      - name: Get status
+        id: status
+        run: |
+          git status .
+
       - name: Set up QEMU
         uses: docker/setup-qemu-action@v3
 

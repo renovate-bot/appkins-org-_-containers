@@ -65,12 +65,13 @@ jobs:
           provenance: false
           context: "."
           file: ./Dockerfile
-          platforms: linux/amd64 #,linux/arm64
+          platforms: linux/amd64,linux/arm64
           build-args: |
             BUILDER_BASE=quay.io/cilium/cilium-envoy-builder:${{ env.BAZEL_VERSION }}-${{ env.BUILDER_DOCKER_HASH}}
             ARCHIVE_IMAGE=quay.io/cilium/cilium-envoy-builder:main-archive-latest
-            BAZEL_BUILD_OPTS=--remote_upload_local_results=false --define tcmalloc=gperftools
+            BAZEL_BUILD_OPTS=--remote_upload_local_results=false --define tcmalloc=disabled
             COPY_CACHE_EXT=.new
+          # --define tcmalloc=gperftools
           cache-to: type=local,dest=/tmp/buildx-cache,mode=max
           push: true
           tags: |

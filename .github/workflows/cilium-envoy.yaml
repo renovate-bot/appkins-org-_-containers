@@ -44,28 +44,57 @@ jobs:
           echo "BAZEL_VERSION=$(cat .bazelversion)" >> $GITHUB_ENV
           echo "BUILDER_DOCKER_HASH=$(git ls-tree --full-tree HEAD -- ./Dockerfile.builder.tests | awk '{ print $3 }')" >> $GITHUB_ENV
 
-      - name: Get status
-        id: status
+      - name: Checking if cilium-envoy-builder image exists
+        id: cilium-builder-tag-in-repositories
+        shell: bash
         run: |
-          git status .
+          if docker buildx imagetools inspect ghcr.io/${{ github.repository }}/cilium-envoy-builder:${{ env.BAZEL_VERSION }}-${{ env.BUILDER_DOCKER_HASH }} &>/dev/null; then
+            echo exists="true" >> $GITHUB_OUTPUT
+          else
+            echo exists="false" >> $GITHUB_OUTPUT
+          fi
 
-      - name: Set up QEMU
-        uses: docker/setup-qemu-action@v3
+      - name: PR Multi-arch build & push of Builder image
+        uses: docker/build-push-action@4a13e500e55cf31b7a5d59a38ab2040ab0f42f56 # v5.1.0
+        if: steps.cilium-builder-tag-in-repositories.outputs.exists == 'false'
+        id: docker_build_builder
+        with:
+          provenance: false
+          context: .
+          file: ./Dockerfile.builder
+          platforms: linux/amd64,linux/arm64
+          push: true
+          build-args: |
+            BAZEL_BUILD_OPTS="--define tcmalloc=gperftools"
+          tags: |
+            ghcr.io/${{ github.repository }}/cilium-envoy-builder:${{ env.BAZEL_VERSION }}-${{ env.BUILDER_DOCKER_HASH }}
+            ghcr.io/${{ github.repository }}/cilium-envoy-builder:${{ env.BAZEL_VERSION }}-latest
 
-      # - name: PR Multi-arch build & push of Builder image
-      #   uses: docker/build-push-action@4a13e500e55cf31b7a5d59a38ab2040ab0f42f56 # v5.1.0
-      #   id: docker_build_builder
-      #   with:
-      #     provenance: false
-      #     context: .
-      #     file: ./Dockerfile.builder
-      #     platforms: linux/amd64,linux/arm64
-      #     push: true
-      #     build-args: |
-      #       BAZEL_BUILD_OPTS="--define tcmalloc=gperftools"
-      #     tags: |
-      #       ghcr.io/${{ github.repository }}/cilium-envoy-builder:${{ github.sha }}
-      #       ghcr.io/${{ github.repository }}/cilium-envoy-builder:latest
+      - name: Multi-arch build & push of build artifact archive
+        uses: docker/build-push-action@4a13e500e55cf31b7a5d59a38ab2040ab0f42f56 # v5.1.0
+        with:
+          context: .
+          file: ./Dockerfile
+          target: builder-archive
+          platforms: linux/amd64,linux/arm64
+          build-args: |
+            BUILDER_BASE=ghcr.io/${{ github.repository }}/cilium-envoy-builder:${{ env.BAZEL_VERSION }}-${{ env.BUILDER_DOCKER_HASH }}
+            ARCHIVE_IMAGE=ghcr.io/${{ github.repository }}/cilium-envoy-builder:main-archive-latest
+            COPY_CACHE_EXT=.new
+            BAZEL_BUILD_OPTS="--jobs=HOST_CPUS*.75"
+          push: true
+          tags: ghcr.io/${{ github.repository }}/cilium-envoy-builder:main-archive-latest
+
+      - name: Cache Docker layers
+        uses: actions/cache@704facf57e6136b1bc63b828d79edcd491f0ee84 # v3.3.2
+        with:
+          path: /tmp/buildx-cache
+          key: docker-cache-master
+
+      - name: Clear cache
+        run: |
+          rm -rf /tmp/buildx-cache/*
+          docker buildx prune -f
 
       - name: Build and push
         uses: docker/build-push-action@v5
@@ -75,11 +104,13 @@ jobs:
           file: ./Dockerfile
           platforms: linux/amd64,linux/arm64
           build-args: |
-            BAZEL_BUILD_OPTS="--remote_upload_local_results=false --define tcmalloc=gperftools"
-          #            |
-          #  BUILDER_BASE=ghcr.io/${{ github.repository }}/cilium-envoy-builder:${{ github.sha }}
-          #  COPY_CACHE_EXT=.new
-          #  BAZEL_BUILD_OPTS="--remote_upload_local_results=false --define tcmalloc=gperftools"
+            BUILDER_BASE=ghcr.io/${{ github.repository }}/cilium-envoy-builder:${{ env.BAZEL_VERSION }}-${{ env.BUILDER_DOCKER_HASH }}
+            ARCHIVE_IMAGE=ghcr.io/${{ github.repository }}/cilium-envoy-builder:main-archive-latest
+            COPY_CACHE_EXT=.new
+            BAZEL_BUILD_OPTS="--remote_upload_local_results=false --define tcmalloc=gperftools"   |
+          cache-to: type=local,dest=/tmp/buildx-cache,mode=max
           tags: |
             ghcr.io/${{ github.repository }}/cilium-envoy:latest
             ghcr.io/${{ github.repository }}/cilium-envoy:${{ github.sha }}
+            ghcr.io/${{ github.repository }}/cilium-envoy:${{ env.ENVOY_MINOR_RELEASE }}-${{ github.sha }}
+            ghcr.io/${{ github.repository }}/cilium-envoy:${{ env.ENVOY_PATCH_RELEASE }}-${{ github.sha }}

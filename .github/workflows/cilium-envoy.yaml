@@ -31,22 +31,25 @@ jobs:
         uses: actions/checkout@b4ffde65f46336ab88eb53be808477a3936bae11 # v4.1.1
         with:
           repository: cilium/proxy
+          ref: main
 
       - name: Set up QEMU
         uses: docker/setup-qemu-action@v3
 
-      - name: PR Multi-arch build & push of Builder image
-        uses: docker/build-push-action@4a13e500e55cf31b7a5d59a38ab2040ab0f42f56 # v5.1.0
-        id: docker_build_builder
-        with:
-          provenance: false
-          context: .
-          file: ./Dockerfile.builder
-          platforms: linux/amd64,linux/arm64
-          push: true
-          tags: |
-            ghcr.io/${{ github.repository }}/cilium-envoy-builder:${{ github.sha }}
-            ghcr.io/${{ github.repository }}/cilium-envoy-builder:latest
+      # - name: PR Multi-arch build & push of Builder image
+      #   uses: docker/build-push-action@4a13e500e55cf31b7a5d59a38ab2040ab0f42f56 # v5.1.0
+      #   id: docker_build_builder
+      #   with:
+      #     provenance: false
+      #     context: .
+      #     file: ./Dockerfile.builder
+      #     platforms: linux/amd64,linux/arm64
+      #     push: true
+      #     build-args: |
+      #       BAZEL_BUILD_OPTS="--define tcmalloc=gperftools"
+      #     tags: |
+      #       ghcr.io/${{ github.repository }}/cilium-envoy-builder:${{ github.sha }}
+      #       ghcr.io/${{ github.repository }}/cilium-envoy-builder:latest
 
       - name: Build and push
         uses: docker/build-push-action@v5
@@ -56,9 +59,11 @@ jobs:
           file: ./Dockerfile
           platforms: linux/amd64,linux/arm64
           build-args: |
-            BUILDER_BASE=ghcr.io/${{ github.repository }}/cilium-envoy-builder:${{ github.sha }}
-            COPY_CACHE_EXT=.new
-            BAZEL_BUILD_OPTS="--remote_upload_local_results=false --define tcmalloc=gperftools"
+            BAZEL_BUILD_OPTS="--define tcmalloc=gperftools"
+          #            |
+          #  BUILDER_BASE=ghcr.io/${{ github.repository }}/cilium-envoy-builder:${{ github.sha }}
+          #  COPY_CACHE_EXT=.new
+          #  BAZEL_BUILD_OPTS="--remote_upload_local_results=false --define tcmalloc=gperftools"
           tags: |
             ghcr.io/${{ github.repository }}/cilium-envoy:latest
             ghcr.io/${{ github.repository }}/cilium-envoy:${{ github.sha }}

@@ -65,7 +65,7 @@ jobs:
           provenance: false
           context: "."
           file: ./Dockerfile
-          platforms: linux/arm64
+          platforms: linux/amd64 #,linux/arm64
           build-args: |
             BUILDER_BASE=quay.io/cilium/cilium-envoy-builder:${{ env.BAZEL_VERSION }}-${{ env.BUILDER_DOCKER_HASH}}
             ARCHIVE_IMAGE=quay.io/cilium/cilium-envoy-builder:main-archive-latest

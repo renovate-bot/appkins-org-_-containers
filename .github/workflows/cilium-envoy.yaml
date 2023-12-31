@@ -55,7 +55,7 @@ jobs:
           file: ./Dockerfile
           platforms: linux/amd64,linux/arm64
           build-args: |
-            BAZEL_BUILD_OPTS="--define tcmalloc=gperftools"
+            BAZEL_BUILD_OPTS="--remote_upload_local_results=false --define tcmalloc=gperftools"
           #            |
           #  BUILDER_BASE=ghcr.io/${{ github.repository }}/cilium-envoy-builder:${{ github.sha }}
           #  COPY_CACHE_EXT=.new

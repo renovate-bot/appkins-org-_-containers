@@ -22,6 +22,7 @@
       if: ${{ needs.get-changed-images.outputs.addedOrModified == 'true' }}
       uses: ./.github/workflows/build-images.yaml
       secrets: inherit
+      permissions: write-all
       with:
         appsToBuild: "${{ needs.get-changed-images.outputs.addedOrModifiedImages }}"
         pushImages: true

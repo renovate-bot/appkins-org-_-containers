@@ -4,9 +4,6 @@
 
   on:
     workflow_call:
-      secrets:
-        GITHUB_TOKEN:
-          description: "GitHub Token"
 
   jobs:
     render-readme:

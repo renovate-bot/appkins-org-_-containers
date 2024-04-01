@@ -26,9 +26,6 @@
           default: true
           type: boolean
           description: Force rebuild
-      secrets:
-        GITHUB_TOKEN:
-          description: A GitHub token
 
   jobs:
     prepare:

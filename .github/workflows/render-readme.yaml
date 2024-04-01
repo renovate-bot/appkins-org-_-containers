@@ -4,13 +4,12 @@
 
   on:
     workflow_call:
-      secrets:
-        BOT_APP_ID:
-          description: The App ID of the GitHub App
+      inputs:
+        githubToken:
+          type: string
+          description: "GitHub Token"
           required: true
-        BOT_APP_PRIVATE_KEY:
-          description: The private key of the GitHub App
-          required: true
+          default: ${{ github.token }}
 
   jobs:
     render-readme:
@@ -27,7 +26,7 @@
         - name: Checkout
           uses: actions/checkout@v4
           with:
-            token: "${{ steps.app-token.outputs.token }}"
+            token: "${{ inputs.githubToken }}"
 
         - name: Setup Python
           uses: actions/setup-python@v5
@@ -41,7 +40,7 @@
 
         - name: Render README
           env:
-            GITHUB_TOKEN: "${{ steps.app-token.outputs.token }}"
+            GITHUB_TOKEN: "${{ inputs.githubToken }}"
           shell: bash
           run: python ./.github/scripts/render-readme.py
 

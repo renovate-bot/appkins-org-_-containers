@@ -1,0 +1,8 @@
+#!/usr/bin/with-contenv bash
+
+if ! apk info 2>&1 | grep -q "python3"; then
+    echo "**** Adding qbittorrent-config deps to package install list ****"
+    echo "python3" >> /mod-repo-packages-to-install.list
+else
+    echo "**** qbittorrent-config deps already installed, skipping ****"
+fi

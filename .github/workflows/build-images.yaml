@@ -26,10 +26,9 @@
           default: true
           type: boolean
           description: Force rebuild
-        githubToken:
-          required: false
-          type: string
-          default: ${{ github.token }}
+      secrets:
+        GITHUB_TOKEN:
+          description: A GitHub token
 
   jobs:
     prepare:
@@ -45,7 +44,7 @@
         - name: Checkout
           uses: actions/checkout@v4
           with:
-            token: "${{ inputs.githubToken }}"
+            token: "${{ secrets.GITHUB_TOKEN }}"
 
         - name: Setup Python
           uses: actions/setup-python@v5
@@ -60,7 +59,7 @@
         - name: Prepare Matrices
           id: prepare-matrices
           env:
-            TOKEN: ${{ inputs.githubToken }}
+            TOKEN: ${{ secrets.GITHUB_TOKEN }}
           shell: bash
           run: |
             if [[ -z "${{ inputs.appsToBuild }}" ]]; then
@@ -133,7 +132,7 @@
         - name: Checkout
           uses: actions/checkout@v4
           with:
-            token: "${{ inputs.githubToken }}"
+            token: "${{ secrets.GITHUB_TOKEN }}"
 
         - name: Setup Docker Buildx
           uses: docker/setup-buildx-action@v3

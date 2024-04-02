@@ -48,6 +48,9 @@ jobs:
             exit 0
           fi
 
+          changed="${changed[@]%/Dockerfile}"
+          changed="${changed[@]#apps/}"
+
           files=$(echo "${changed[@]%/Dockerfile}" | jq -R -s -c 'split("\n") | map(select(length>0))')
 
           echo "files=${files}" >> $GITHUB_OUTPUT
@@ -86,17 +89,10 @@ jobs:
       - name: Set up QEMU
         uses: docker/setup-qemu-action@v3
 
-      - name: Get image name
-        id: image-name
-        run: |
-          img_name="${{ matrix.file }}"
-          img_name="${img_name#apps/}"
-          echo "image=ghcr.io/${{ github.repository }}/${img_name}" >> $GITHUB_OUTPUT
-
       - name: Build and push
         uses: docker/build-push-action@v5
         with:
           push: true
-          context: "${{ matrix.file }}"
+          context: "apps/${{ matrix.file }}"
           platforms: linux/amd64,linux/arm64
-          tags: "${{ steps.image-name.outputs.image }}:${{ github.sha }},${{ steps.image-name.outputs.image }}:latest"
+          tags: "ghcr.io/${{ github.repository }}/${{ matrix.file }}:${{ github.sha }},ghcr.io/${{ github.repository }}/${{ matrix.file }}:latest"

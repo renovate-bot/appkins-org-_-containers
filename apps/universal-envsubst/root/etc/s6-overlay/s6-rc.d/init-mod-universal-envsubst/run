@@ -1,0 +1,13 @@
+#!/usr/bin/with-contenv bash
+
+ENVSUBST_TARGET="${ENVSUBST_TARGET:-/config/config.xml}"
+ENVSUBST_SOURCE="${ENVSUBST_SOURCE:-${ENVSUBST_TARGET}.tmpl}"
+
+if [ -f "${ENVSUBST_TARGET}" ]; then
+    if [ -f "${ENVSUBST_TARGET}.bak" ]; then
+        mv "${ENVSUBST_TARGET}.bak" "${ENVSUBST_TARGET}_2.bak"
+    fi
+    mv "${ENVSUBST_TARGET}" "${ENVSUBST_TARGET}.bak"
+fi
+
+envsubst --no-empty --variables < "${ENVSUBST_SOURCE}" > "${ENVSUBST_TARGET}"

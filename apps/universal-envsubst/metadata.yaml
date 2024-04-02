@@ -1,7 +1,7 @@
 ---
 app: universal-envsubst
 base: false
-semantic_versioning: true
+semantic_versioning: false
 channels:
   - name: stable
     platforms: ["linux/amd64", "linux/arm64"]

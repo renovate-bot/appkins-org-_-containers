@@ -1,4 +1,4 @@
-# envsubst - Docker mod for any container
+# qbittorrent-config - Docker mod for any container
 
 ## Custom environment configuration
 

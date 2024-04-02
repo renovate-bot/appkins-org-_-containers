@@ -89,10 +89,16 @@ jobs:
       - name: Set up QEMU
         uses: docker/setup-qemu-action@v3
 
+      - name: Extract metadata (tags, labels) for Docker
+        id: meta
+        uses: docker/metadata-action@9ec57ed1fcdbf14dcef7dfbe97b2010124a938b7
+        with:
+          images: ghcr.io/${{ github.repository }}/${{ matrix.file }}
+
       - name: Build and push
         uses: docker/build-push-action@v5
         with:
           push: true
           context: "apps/${{ matrix.file }}"
           platforms: linux/amd64,linux/arm64
-          tags: "ghcr.io/${{ github.repository }}/${{ matrix.file }}:latest"
+          tags: ${{ steps.meta.outputs.tags }}

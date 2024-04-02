@@ -95,4 +95,4 @@ jobs:
           push: true
           context: "apps/${{ matrix.file }}"
           platforms: linux/amd64,linux/arm64
-          tags: "ghcr.io/${{ github.repository }}/${{ matrix.file }}:${{ github.sha }},ghcr.io/${{ github.repository }}/${{ matrix.file }}:latest"
+          tags: "ghcr.io/${{ github.repository }}/${{ matrix.file }}:latest"

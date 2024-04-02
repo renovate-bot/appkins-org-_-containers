@@ -10,4 +10,9 @@ if [ -f "${ENVSUBST_TARGET}" ]; then
     mv "${ENVSUBST_TARGET}" "${ENVSUBST_TARGET}.bak"
 fi
 
-envsubst --no-empty --variables < "${ENVSUBST_SOURCE}" > "${ENVSUBST_TARGET}"
+if [ ! -f "${ENVSUBST_SOURCE}" ]; then
+    echo "**** ${ENVSUBST_SOURCE} not found, skipping ****"
+    exit 0
+fi
+
+envsubst < "${ENVSUBST_SOURCE}" > "${ENVSUBST_TARGET}"

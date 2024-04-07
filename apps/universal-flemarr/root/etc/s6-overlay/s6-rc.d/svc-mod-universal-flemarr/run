@@ -1,0 +1,4 @@
+#!/usr/bin/with-contenv bash
+
+cd /flemarr || exit
+exec s6-setuidgid abc python3 run.py

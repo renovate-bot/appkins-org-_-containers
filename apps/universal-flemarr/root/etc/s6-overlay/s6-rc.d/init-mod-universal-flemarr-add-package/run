@@ -1,33 +1,17 @@
 #!/usr/bin/with-contenv bash
 
 if [ -f /usr/bin/apt ]; then ## Ubuntu
-  packages=(
-    python3-yaml
-    python3-urllib3
-    python3-requests
-  )
-  for package in "${packages[@]}"; do
-    if ! dpkg -l "${package}" > /dev/null; then
-      echo "**** Adding ${package} deps to package install list ****"
-      echo "${package}" >> /mod-repo-packages-to-install.list
-    else
-      echo "**** ${package} deps already installed, skipping ****"
-    fi
-  done
+  echo "\
+    python3 \
+    python3-yaml \
+    python3-urllib3 \
+    python3-requests" >> /mod-repo-packages-to-install.list
 elif [ -f /sbin/apk ]; then ## Alpine
-  packages=(
-    py3-yaml
-    py3-urllib3
-    py3-requests
-  )
-  for package in "${packages[@]}"; do
-    if ! apk info 2>&1 | grep -q "${package}"; then
-      echo "**** Adding ${package} deps to package install list ****"
-      echo "${package}" >> /mod-repo-packages-to-install.list
-    else
-      echo "**** ${package} deps already installed, skipping ****"
-    fi
-  done
+  echo "\
+    py3 \
+    py3-yaml \
+    py3-urllib3 \
+    py3-requests" >> /mod-repo-packages-to-install.list
 else
   echo "**** Unsupported OS ****"
   exit 1

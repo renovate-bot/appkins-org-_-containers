@@ -1,48 +1,24 @@
 #!/usr/bin/with-contenv bash
 
-ENVSUBST_SEPARATOR="${ENVSUBST_SEPARATOR:-:}"
-
-if [ -n "${ENVSUBST_TEMPLATES}" ]; then
-  echo "**** Creating array from ENVSUBST_TEMPLATES ****"
-  ENVSUBST_TEMPLATES=$(printf "${ENVSUBST_SEPARATOR}%s" "${ENVSUBST_TEMPLATES[@]}")
-  ENVSUBST_TEMPLATES=${ENVSUBST_TEMPLATES:1}
-  IFS="${ENVSUBST_SEPARATOR}" read -r -A ENVSUBST_TEMPLATES <<<"${ENVSUBST_TEMPLATES}"
+if [ ! -d /flemarr ]; then
+  mkdir /flemarr
 fi
 
-if [ "${#ENVSUBST_TEMPLATES[@]}" -eq 0 ]; then
-  echo "**** No templates found, setting defaults ****"
-  ENVSUBST_TEMPLATES=(
-    /config/config.xml.tmpl
-  )
+if [ -d /config ]; then
+  ln -s /config /flemarr/config
 else
-  echo "**** Found ${#ENVSUBST_TEMPLATES[@]} templates ****"
+  mkdir -p /flemarr/config
 fi
 
-function _backup() {
-  target="${1%.tmpl}"
-  if [ -f "${target}" ]; then
-    echo "**** Backing up ${target} ****"
-    if [ -f "${target}.bak" ]; then
-        mv "${target}.bak" "${target}_2.bak"
-    fi
-    mv "${target}" "${target}.bak"
-  fi
-}
+if [ ! -f /config/config.yml ]; then
+  echo "config.yml not found. Please create it."
+  exit 1
+fi
 
-function _process() {
-  tmpl="${1}"
-  target="${tmpl%.tmpl}"
-  _backup "${target}"
-  echo "**** Processing ${tmpl} ****"
-  if [ -f "${tmpl}" ]; then
-    echo "**** Running envsubst for ${tmpl} ****"
-    envsubst <"${tmpl}" >"${target}"
-  else
-    echo "**** ${tmpl} not found, skipping ****"
-  fi
-}
-
-for tmpl in "${ENVSUBST_TEMPLATES[@]}"; do
-  _backup "${tmpl}"
-  _process "${tmpl}"
-done
+if [ ! -f /flemarr/flemarr.py ]; then
+  curl -sfL -o /flemarr/api.py https://raw.githubusercontent.com/Flemmarr/Flemmarr/master/src/api.py
+  curl -sfL -o /flemarr/run.py https://raw.githubusercontent.com/Flemmarr/Flemmarr/master/src/run.py
+else
+  echo "**** Unsupported OS ****"
+  exit 1
+fi

@@ -10,15 +10,14 @@ else
   mkdir -p /flemarr/config
 fi
 
-if [ ! -f /config/config.yml ]; then
-  echo "config.yml not found. Please create it."
-  exit 1
-fi
-
 if [ ! -f /flemarr/flemarr.py ]; then
   curl -sfL -o /flemarr/api.py https://raw.githubusercontent.com/Flemmarr/Flemmarr/master/src/api.py
   curl -sfL -o /flemarr/run.py https://raw.githubusercontent.com/Flemmarr/Flemmarr/master/src/run.py
 else
   echo "**** Unsupported OS ****"
   exit 1
+fi
+
+if ! { [ -f /config/config.yml ] || [ -f /config/config.yml.tmpl ]; }; then
+  echo "config.yml not found. Please create it."
 fi

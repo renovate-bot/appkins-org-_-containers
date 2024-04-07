@@ -1,18 +1,42 @@
 #!/usr/bin/with-contenv bash
 
-ENVSUBST_TARGET="${ENVSUBST_TARGET:-/config/config.xml}"
-ENVSUBST_SOURCE="${ENVSUBST_SOURCE:-${ENVSUBST_TARGET}.tmpl}"
+ENVSUBST_SEPARATOR="${ENVSUBST_SEPARATOR:-:}"
 
-if [ -f "${ENVSUBST_TARGET}" ]; then
-    if [ -f "${ENVSUBST_TARGET}.bak" ]; then
-        mv "${ENVSUBST_TARGET}.bak" "${ENVSUBST_TARGET}_2.bak"
+if [ -n "${ENVSUBST_TEMPLATES}" ]; then
+    echo "**** Creating array from ENVSUBST_TEMPLATES ****"
+    ENVSUBST_TEMPLATES=$(printf "${ENVSUBST_SEPARATOR}%s" "${ENVSUBST_TEMPLATES[@]}")
+    ENVSUBST_TEMPLATES=${ENVSUBST_TEMPLATES:1}
+    IFS="${ENVSUBST_SEPARATOR}" read -r -A ENVSUBST_TEMPLATES <<< "${ENVSUBST_TEMPLATES}"
+fi
+
+if [ "${#ENVSUBST_TEMPLATES[@]}" -eq 0 ]; then
+    echo "**** No templates found, setting defaults ****"
+    ENVSUBST_TEMPLATES=(
+      /config/config.xml.tmpl
+    )
+else
+    echo "**** Found ${#ENVSUBST_TEMPLATES[@]} templates ****"
+fi
+
+function _backup() {
+    target="${1}"
+    if [ -f "${target}" ]; then
+      echo "**** Backing up ${target} ****"
+      if [ -f "${target}.bak" ]; then
+          mv "${target}.bak" "${target}_2.bak"
+      fi
+      mv "${target}" "${target}.bak"
+  fi
+}
+
+for tmpl in "${ENVSUBST_TEMPLATES[@]}"; do
+    target="${tmpl%.tmpl}"
+    _backup "${target}"
+    echo "**** Processing ${tmpl} ****"
+    if [ -f "${tmpl}" ]; then
+        echo "**** Running envsubst for ${tmpl} ****"
+        envsubst < "${tmpl}" > "${target}"
+    else
+        echo "**** ${tmpl} not found, skipping ****"
     fi
-    mv "${ENVSUBST_TARGET}" "${ENVSUBST_TARGET}.bak"
-fi
-
-if [ ! -f "${ENVSUBST_SOURCE}" ]; then
-    echo "**** ${ENVSUBST_SOURCE} not found, skipping ****"
-    exit 0
-fi
-
-envsubst < "${ENVSUBST_SOURCE}" > "${ENVSUBST_TARGET}"
+done

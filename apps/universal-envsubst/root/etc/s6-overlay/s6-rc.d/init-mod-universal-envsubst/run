@@ -1,25 +1,12 @@
 #!/usr/bin/with-contenv bash
 
-ENVSUBST_SEPARATOR="${ENVSUBST_SEPARATOR:-:}"
+ENVSUBST_SEPARATOR="${ENVSUBST_SEPARATOR:-|}"
+ENVSUBST_TEMPLATES="${ENVSUBST_TEMPLATES:-/config/config.xml.tmpl}"
 
-if [ -n "${ENVSUBST_TEMPLATES}" ]; then
-  echo "**** Creating array from ENVSUBST_TEMPLATES ****"
-  ENVSUBST_TEMPLATES=$(printf "${ENVSUBST_SEPARATOR}%s" "${ENVSUBST_TEMPLATES[@]}")
-  ENVSUBST_TEMPLATES=${ENVSUBST_TEMPLATES:1}
-  IFS="${ENVSUBST_SEPARATOR}" read -r -A ENVSUBST_TEMPLATES <<<"${ENVSUBST_TEMPLATES}"
-fi
+IFS="${ENVSUBST_SEPARATOR}" read -r -A TEMPLATE_LIST <<<"${ENVSUBST_TEMPLATES}"
 
-if [ "${#ENVSUBST_TEMPLATES[@]}" -eq 0 ]; then
-  echo "**** No templates found, setting defaults ****"
-  ENVSUBST_TEMPLATES=(
-    /config/config.xml.tmpl
-  )
-else
-  echo "**** Found ${#ENVSUBST_TEMPLATES[@]} templates ****"
-fi
-
-function _backup() {
-  target="${1%.tmpl}"
+function _backup {
+  target="${1%.*}"
   if [ -f "${target}" ]; then
     echo "**** Backing up ${target} ****"
     if [ -f "${target}.bak" ]; then
@@ -29,20 +16,19 @@ function _backup() {
   fi
 }
 
-function _process() {
-  tmpl="${1}"
-  target="${tmpl%.tmpl}"
-  _backup "${target}"
-  echo "**** Processing ${tmpl} ****"
-  if [ -f "${tmpl}" ]; then
-    echo "**** Running envsubst for ${tmpl} ****"
-    envsubst <"${tmpl}" >"${target}"
+function _process {
+  source="${1}"
+  target="${source%.*}"
+  echo "**** Processing ${source} ****"
+  if [ -f "${source}" ]; then
+    echo "**** Running envsubst for ${source} ****"
+    envsubst < "${source}" > "${target}"
   else
-    echo "**** ${tmpl} not found, skipping ****"
+    echo "**** ${source} not found, skipping ****"
   fi
 }
 
-for tmpl in "${ENVSUBST_TEMPLATES[@]}"; do
-  _backup "${tmpl}"
-  _process "${tmpl}"
+for src in "${TEMPLATE_LIST[@]}"; do
+  _backup "${src}"
+  _process "${src}"
 done

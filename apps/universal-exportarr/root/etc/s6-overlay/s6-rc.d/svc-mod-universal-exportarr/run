@@ -1,0 +1,20 @@
+#!/usr/bin/with-contenv bash
+# shellcheck shell=bash
+
+DEFAULT_PORT=$((${PORT:-9700} + 1))
+DEFAULT_URL="http://localhost:${PORT}"
+
+if [ -z "${EXPORTARR_ARGS}" ]; then
+  EXPORTARR_ARGS=(
+    --disable-ssl-verify
+  )
+fi
+
+exec \
+  s6-notifyoncheck -d -n 300 -w 1000 \
+  s6-setuidgid abc tini-static -- /app/exportarr/exportarr \
+    "${EXPORTARR_COMMAND:-${INSTANCE_NAME:-radarr}}" \
+    --api-key "${EXPORTARR_API_KEY:-$API_KEY}" \
+    --port "${EXPORTARR_PORT:-$DEFAULT_PORT}" \
+    --url "${EXPORTARR_URL:-$DEFAULT_URL}" \
+    "${EXPORTARR_ARGS[@]}"

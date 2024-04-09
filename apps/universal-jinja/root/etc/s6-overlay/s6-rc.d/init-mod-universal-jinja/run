@@ -1,0 +1,39 @@
+#!/usr/bin/with-contenv bash
+
+JINJA_SEPARATOR="${JINJA_SEPARATOR:-|}"
+JINJA_TEMPLATES="${JINJA_TEMPLATES:-/config/config.xml.j2}"
+JINJA_DATA="${JINJA_DATA:-/config/data.yaml}"
+
+if [ ! -f "${JINJA_DATA}" ]; then
+  touch "${JINJA_DATA}"
+fi
+
+IFS="${JINJA_SEPARATOR}" read -r -a TEMPLATE_LIST <<<"${JINJA_TEMPLATES}"
+
+function _backup {
+  target="${1%.*}"
+  if [ -f "${target}" ]; then
+    echo "**** Backing up ${target} ****"
+    if [ -f "${target}.bak" ]; then
+        mv "${target}.bak" "${target}_2.bak"
+    fi
+    mv "${target}" "${target}.bak"
+  fi
+}
+
+function _process {
+  source="${1}"
+  target="${source%.*}"
+  echo "**** Processing ${source} ****"
+  if [ -f "${source}" ]; then
+    echo "**** Running envsubst for ${source} ****"
+    envsubst < "${source}" > "${target}"
+  else
+    echo "**** ${source} not found, skipping ****"
+  fi
+}
+
+for src in "${TEMPLATE_LIST[@]}"; do
+  _backup "${src}"
+  _process "${src}"
+done

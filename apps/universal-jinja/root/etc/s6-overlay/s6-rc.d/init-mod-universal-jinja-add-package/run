@@ -1,0 +1,20 @@
+#!/usr/bin/with-contenv bash
+
+if [ -f /usr/bin/apt ]; then ## Ubuntu
+  if ! dpkg -l j2cli > /dev/null; then
+    echo "**** Adding jinja deps to package install list ****"
+    echo "j2cli" >> /mod-repo-packages-to-install.list
+  else
+    echo "**** jinja deps already installed, skipping ****"
+  fi
+elif [ -f /sbin/apk ]; then ## Alpine
+  if ! apk info 2>&1 | grep -q "jinja2-cli"; then
+    echo "**** Adding jinja deps to package install list ****"
+    echo "jinja2-cli" >> /mod-repo-packages-to-install.list
+  else
+    echo "**** jinja deps already installed, skipping ****"
+  fi
+else
+  echo "**** Unsupported OS ****"
+  exit 1
+fi

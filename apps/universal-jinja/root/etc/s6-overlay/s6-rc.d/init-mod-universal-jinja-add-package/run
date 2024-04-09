@@ -3,6 +3,7 @@
 if [ -f /usr/bin/apt ]; then ## Ubuntu
   if ! dpkg -l j2cli > /dev/null; then
     echo "**** Adding jinja deps to package install list ****"
+    echo "python3-pip" >> /mod-repo-packages-to-install.list
     echo "j2cli" >> /mod-repo-packages-to-install.list
   else
     echo "**** jinja deps already installed, skipping ****"
@@ -10,6 +11,7 @@ if [ -f /usr/bin/apt ]; then ## Ubuntu
 elif [ -f /sbin/apk ]; then ## Alpine
   if ! apk info 2>&1 | grep -q "jinja2-cli"; then
     echo "**** Adding jinja deps to package install list ****"
+    echo "py3-pip" >> /mod-repo-packages-to-install.list
     echo "jinja2-cli" >> /mod-repo-packages-to-install.list
   else
     echo "**** jinja deps already installed, skipping ****"

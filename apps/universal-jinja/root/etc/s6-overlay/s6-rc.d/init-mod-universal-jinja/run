@@ -4,6 +4,8 @@ JINJA_SEPARATOR="${JINJA_SEPARATOR:-|}"
 JINJA_TEMPLATES="${JINJA_TEMPLATES:-/config/config.xml.j2}"
 JINJA_DATA="${JINJA_DATA:-/config/data.yaml}"
 
+pip install jinja2-getenv-extension --break-system-packages
+
 if [ ! -f "${JINJA_DATA}" ]; then
   touch "${JINJA_DATA}"
 fi
@@ -27,7 +29,7 @@ function _process {
   echo "**** Processing ${source} ****"
   if [ -f "${source}" ]; then
     echo "**** Running envsubst for ${source} ****"
-    envsubst < "${source}" > "${target}"
+    jinja2 -e jinja2_getenv_extension.GetenvExtension "${source}" "${JINJA_DATA}" --format=yaml > "${target}"
   else
     echo "**** ${source} not found, skipping ****"
   fi

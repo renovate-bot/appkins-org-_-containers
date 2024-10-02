@@ -45,3 +45,4 @@ Temporary Items
 .goss
 .private
 **/*.pyc
+.vscode/settings.json

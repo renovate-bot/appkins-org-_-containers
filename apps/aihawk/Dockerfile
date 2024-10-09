@@ -1,7 +1,7 @@
 FROM alpine:latest AS src
 RUN apk add curl libarchive-tools
 RUN mkdir -p /opt/ ; \
-  curl -sfL https://github.com/feder-cr/Auto_Jobs_Applier_AIHawk/archive/v3.zip | bsdtar xvzf - --strip-components=1 -C /opt
+  curl -sfL https://github.com/MrTpat/Auto_Jobs_Applier_AIHawk/archive/main.zip | bsdtar xvzf - --strip-components=1 -C /opt
 
 FROM docker.io/python:3.10-slim-buster
 ARG TARGETARCH

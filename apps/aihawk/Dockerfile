@@ -1,9 +1,9 @@
 FROM alpine:latest AS src
-RUN apk add unzip wget curl libarchive-tools
+RUN apk add curl libarchive-tools
 RUN mkdir -p /opt/ ; \
   curl -sfL https://github.com/feder-cr/Auto_Jobs_Applier_AIHawk/archive/v3.zip | bsdtar xvzf - --strip-components=1 -C /opt
 
-FROM docker.io/python:3.10-buster
+FROM docker.io/python:3.10-slim-buster
 ARG TARGETARCH
 ARG VERSION
 
@@ -15,7 +15,10 @@ ENV PATH="/app/bin:$PATH"
 WORKDIR /app
 
 RUN \
-    apt update && apt install -y git chromium-driver \
-    && pip install -Ur /app/requirements.txt
+    apt update && apt install -y --no-install-recommends git chromium-driver && \
+    rm -rf /var/lib/apt/lists/* && \
+    rm -Rf /usr/share/doc && rm -Rf /usr/share/man && \
+    apt clean && \
+    pip install -Ur /app/requirements.txt
 
-ENTRYPOINT ["python", "/app/main.py"]
+ENTRYPOINT ["python", "main.py"]

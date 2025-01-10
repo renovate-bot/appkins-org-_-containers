@@ -1,0 +1,9 @@
+#!/usr/bin/with-contenv bash
+
+until [ -f /flemarr/config/config.yml ]
+do
+  sleep 5
+done
+
+cd /flemarr || exit
+exec s6-setuidgid abc python3 run.py

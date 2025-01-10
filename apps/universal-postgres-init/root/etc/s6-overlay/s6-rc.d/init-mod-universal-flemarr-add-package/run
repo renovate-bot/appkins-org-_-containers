@@ -1,0 +1,18 @@
+#!/usr/bin/with-contenv bash
+
+if [ -f /usr/bin/apt ]; then ## Ubuntu
+  echo "\
+    python3 \
+    python3-yaml \
+    python3-urllib3 \
+    python3-requests" >> /mod-repo-packages-to-install.list
+elif [ -f /sbin/apk ]; then ## Alpine
+  echo "\
+    python3 \
+    py3-yaml \
+    py3-urllib3 \
+    py3-requests" >> /mod-repo-packages-to-install.list
+else
+  echo "**** Unsupported OS ****"
+  exit 1
+fi

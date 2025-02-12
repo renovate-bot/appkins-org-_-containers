@@ -3,7 +3,7 @@ RUN apt update && apt install -y curl kmod
 RUN mkdir -p /opt/ ; \
   curl -sfL https://github.com/MrTpat/Auto_Jobs_Applier_AIHawk/archive/main.zip | bsdtar xvzf - --strip-components=1 -C /opt
 
-FROM docker.io/python:3.10-slim-buster
+FROM docker.io/python:3.11-slim-buster
 ARG TARGETARCH
 ARG VERSION
 

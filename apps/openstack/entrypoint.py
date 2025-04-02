@@ -8,6 +8,7 @@ import shutil
 import time
 import json
 import uuid
+import stat
 from pathlib import Path
 import tempfile
 
@@ -143,27 +144,27 @@ def configure_database_connection(config_path, service):
 def enable_keystone_application_credentials(config_path):
     """Enable application credentials in Keystone configuration"""
     logger.info("Enabling application credentials in Keystone")
-    
+
     config = configparser.ConfigParser()
     config.read(config_path)
-    
+
     # Make sure application credential options are enabled
     if 'application_credential' not in config:
         config['application_credential'] = {}
-    
+
     config['application_credential']['driver'] = 'sql'
     config['application_credential']['enable'] = 'True'
-    
+
     # Write updated config
     with open(config_path, 'w') as f:
         config.write(f)
-    
+
     logger.info("Application credentials enabled in Keystone configuration")
 
 def create_application_credentials():
     """Create application credentials for each OpenStack service"""
     logger.info("Creating application credentials for OpenStack services")
-    
+
     # Create a temporary file for admin credentials
     admin_creds = tempfile.NamedTemporaryFile(mode='w', delete=False)
     admin_creds.write(f"""
@@ -176,29 +177,29 @@ export OS_PROJECT_DOMAIN_NAME=Default
 export OS_IDENTITY_API_VERSION=3
 """)
     admin_creds.close()
-    
+
     app_creds_dir = '/var/lib/openstack/app_credentials'
     os.makedirs(app_creds_dir, exist_ok=True)
-    
+
     services = ['glance', 'cinder', 'neutron', 'ironic', 'nova', 'horizon']
     service_app_creds = {}
-    
+
     try:
         # Source admin credentials
         source_cmd = f". {admin_creds.name}"
-        
+
         # Make sure service project exists
         run_command([
-            'bash', '-c', 
+            'bash', '-c',
             f"{source_cmd} && openstack project show service || openstack project create --domain default --description 'Service Project' service"
         ], shell=False)
-        
+
         # Create application credentials for each service
         for service in services:
             # Check if service user exists, if not create it
             create_user_cmd = f"{source_cmd} && openstack user show {service} || openstack user create --domain default --password {service} {service}"
             run_command(['bash', '-c', create_user_cmd], shell=False)
-            
+
             # Add service role to service user
             add_role_cmd = f"{source_cmd} && openstack role add --project service --user {service} service"
             try:
@@ -206,67 +207,67 @@ export OS_IDENTITY_API_VERSION=3
             except subprocess.CalledProcessError:
                 # Role might already exist, this is fine
                 pass
-            
+
             # Generate a unique application credential name for this service
             app_cred_name = f"{service}-{uuid.uuid4().hex[:8]}"
             secret = os.environ.get(f'{service.upper()}_APP_CRED_SECRET', uuid.uuid4().hex)
-            
+
             # Create the application credential for the service
             create_app_cred_cmd = f"{source_cmd} && openstack application credential create --user {service} --secret {secret} {app_cred_name} -f json"
             app_cred_output = run_command(['bash', '-c', create_app_cred_cmd], shell=False)
-            
+
             # Parse the application credential info from JSON output
             app_cred_info = json.loads(app_cred_output)
-            
+
             # Store application credential info
             service_app_creds[service] = {
                 'id': app_cred_info['id'],
                 'name': app_cred_name,
                 'secret': secret
             }
-            
+
             # Save application credential to file for future use
             with open(f"{app_creds_dir}/{service}_app_cred.json", 'w') as f:
                 f.write(json.dumps(service_app_creds[service], indent=2))
-                
+
             logger.info(f"Created application credential for {service} service: {app_cred_name}")
-    
+
     finally:
         # Clean up temporary admin credential file
         os.unlink(admin_creds.name)
-    
+
     return service_app_creds
 
 def configure_service_with_application_credential(config_path, service):
     """Configure a service to use application credentials for authentication"""
     logger.info(f"Configuring {service} to use application credentials")
-    
+
     config = configparser.ConfigParser()
     config.read(config_path)
-    
+
     # Check if application credential file exists
     app_cred_file = f'/var/lib/openstack/app_credentials/{service}_app_cred.json'
     if not os.path.exists(app_cred_file):
         logger.warning(f"Application credential file not found for {service}, skipping")
         return
-    
+
     # Load application credential info
     with open(app_cred_file, 'r') as f:
         app_cred = json.loads(f.read())
-    
+
     # Configure keystone authentication with application credentials
     if 'keystone_authtoken' not in config:
         config['keystone_authtoken'] = {}
-    
+
     config['keystone_authtoken']['auth_type'] = 'v3applicationcredential'
     config['keystone_authtoken']['auth_url'] = 'http://localhost:5000/v3'
     config['keystone_authtoken']['application_credential_id'] = app_cred['id']
     config['keystone_authtoken']['application_credential_secret'] = app_cred['secret']
-    
+
     # Write updated config
     with open(config_path, 'w') as f:
         config.write(f)
-    
+
     logger.info(f"{service} configured to use application credentials")
 
 def configure_keystone():
@@ -274,6 +275,8 @@ def configure_keystone():
     logger.info("Configuring Keystone")
     config_path = merge_config(CONFIG_FILES['keystone'], 'keystone')
     configure_database_connection(config_path, 'keystone')
+
+    # Enable application credentials in Keystone config
     enable_keystone_application_credentials(config_path)
 
     # Bootstrap Keystone
@@ -304,7 +307,7 @@ def configure_glance():
     logger.info("Configuring Glance")
     config_path = merge_config(CONFIG_FILES['glance'], 'glance')
     configure_database_connection(config_path, 'glance')
-    
+
     # Configure glance to use application credentials
     configure_service_with_application_credential(config_path, 'glance')
 
@@ -319,7 +322,7 @@ def configure_cinder():
     logger.info("Configuring Cinder")
     config_path = merge_config(CONFIG_FILES['cinder'], 'cinder')
     configure_database_connection(config_path, 'cinder')
-    
+
     # Configure Cinder to use application credentials
     configure_service_with_application_credential(config_path, 'cinder')
 
@@ -334,7 +337,7 @@ def configure_neutron():
     logger.info("Configuring Neutron")
     config_path = merge_config(CONFIG_FILES['neutron'], 'neutron')
     configure_database_connection(config_path, 'neutron')
-    
+
     # Configure Neutron to use application credentials
     configure_service_with_application_credential(config_path, 'neutron')
 
@@ -349,7 +352,7 @@ def configure_ironic():
     logger.info("Configuring Ironic")
     config_path = merge_config(CONFIG_FILES['ironic'], 'ironic')
     configure_database_connection(config_path, 'ironic')
-    
+
     # Configure Ironic to use application credentials
     configure_service_with_application_credential(config_path, 'ironic')
 
@@ -365,6 +368,9 @@ def configure_nova():
     config_path = merge_config(CONFIG_FILES['nova'], 'nova')
     configure_database_connection(config_path, 'nova')
 
+    # Configure Nova to use application credentials
+    configure_service_with_application_credential(config_path, 'nova')
+
     # Configure Nova to use local Ironic instance
     config = configparser.ConfigParser()
     config.read(config_path)
@@ -373,14 +379,26 @@ def configure_nova():
     if 'ironic' not in config:
         config['ironic'] = {}
 
-    # Set up Nova to use local Ironic
-    config['ironic']['auth_type'] = 'password'
-    config['ironic']['auth_url'] = 'http://localhost:5000/v3'
-    config['ironic']['project_name'] = 'service'
-    config['ironic']['username'] = 'ironic'
-    config['ironic']['password'] = os.environ.get('IRONIC_SERVICE_PASSWORD', 'ironic')
-    config['ironic']['user_domain_name'] = 'Default'
-    config['ironic']['project_domain_name'] = 'Default'
+    # Set up Nova to use local Ironic with application credentials
+    app_cred_file = f'/var/lib/openstack/app_credentials/ironic_app_cred.json'
+    if os.path.exists(app_cred_file):
+        with open(app_cred_file, 'r') as f:
+            ironic_app_cred = json.loads(f.read())
+
+        # Configure Nova to use Ironic with application credentials
+        config['ironic']['auth_type'] = 'v3applicationcredential'
+        config['ironic']['auth_url'] = 'http://localhost:5000/v3'
+        config['ironic']['application_credential_id'] = ironic_app_cred['id']
+        config['ironic']['application_credential_secret'] = ironic_app_cred['secret']
+    else:
+        # Fallback to password auth if app creds not available
+        config['ironic']['auth_type'] = 'password'
+        config['ironic']['auth_url'] = 'http://localhost:5000/v3'
+        config['ironic']['project_name'] = 'service'
+        config['ironic']['username'] = 'ironic'
+        config['ironic']['password'] = os.environ.get('IRONIC_SERVICE_PASSWORD', 'ironic')
+        config['ironic']['user_domain_name'] = 'Default'
+        config['ironic']['project_domain_name'] = 'Default'
 
     # Enable Ironic driver in Nova
     if 'DEFAULT' not in config:
@@ -388,17 +406,29 @@ def configure_nova():
 
     config['DEFAULT']['compute_driver'] = 'ironic.IronicDriver'
 
-    # Configure networking for Ironic instances
+    # Configure networking for Ironic instances with app credentials
     if 'neutron' not in config:
         config['neutron'] = {}
 
-    config['neutron']['auth_type'] = 'password'
-    config['neutron']['auth_url'] = 'http://localhost:5000/v3'
-    config['neutron']['project_name'] = 'service'
-    config['neutron']['username'] = 'neutron'
-    config['neutron']['password'] = os.environ.get('NEUTRON_SERVICE_PASSWORD', 'neutron')
-    config['neutron']['user_domain_name'] = 'Default'
-    config['neutron']['project_domain_name'] = 'Default'
+    app_cred_file = f'/var/lib/openstack/app_credentials/neutron_app_cred.json'
+    if os.path.exists(app_cred_file):
+        with open(app_cred_file, 'r') as f:
+            neutron_app_cred = json.loads(f.read())
+
+        # Configure Nova to use Neutron with application credentials
+        config['neutron']['auth_type'] = 'v3applicationcredential'
+        config['neutron']['auth_url'] = 'http://localhost:5000/v3'
+        config['neutron']['application_credential_id'] = neutron_app_cred['id']
+        config['neutron']['application_credential_secret'] = neutron_app_cred['secret']
+    else:
+        # Fallback to password auth if app creds not available
+        config['neutron']['auth_type'] = 'password'
+        config['neutron']['auth_url'] = 'http://localhost:5000/v3'
+        config['neutron']['project_name'] = 'service'
+        config['neutron']['username'] = 'neutron'
+        config['neutron']['password'] = os.environ.get('NEUTRON_SERVICE_PASSWORD', 'neutron')
+        config['neutron']['user_domain_name'] = 'Default'
+        config['neutron']['project_domain_name'] = 'Default'
 
     # Set Nova API endpoints
     if 'DEFAULT' in config:
@@ -429,6 +459,14 @@ def configure_horizon():
 
     # Create local_settings.py with correct configuration
     settings_path = '/etc/openstack-dashboard/local_settings.py'
+
+    # Check if horizon application credential exists
+    app_cred_file = '/var/lib/openstack/app_credentials/horizon_app_cred.json'
+    horizon_app_cred = None
+    if os.path.exists(app_cred_file):
+        with open(app_cred_file, 'r') as f:
+            horizon_app_cred = json.loads(f.read())
+            logger.info("Using application credentials for Horizon")
 
     settings_content = f"""
 import os
@@ -464,6 +502,20 @@ OPENSTACK_API_VERSIONS = {{
     'identity': 3,
     'image': 2,
     'volume': 3,
+}}
+
+# Enable application credential auth in Horizon
+AUTHENTICATION_PLUGINS = ['openstack_auth.plugin.password.Password',
+                          'openstack_auth.plugin.application_credential.ApplicationCredential']
+"""
+
+    # If we have a horizon application credential, add the option to pre-populate fields
+    if horizon_app_cred:
+        settings_content += f"""
+# Application credential settings for Horizon
+APPLICATION_CREDENTIAL_SETTINGS = {{
+    'application_credential_id': '{horizon_app_cred['id']}',
+    'application_credential_secret': '{horizon_app_cred['secret']}'
 }}
 """
 
@@ -643,9 +695,128 @@ def start_services():
         if os.path.exists(wsgi_dir):
             shutil.rmtree(wsgi_dir)
 
+def prepare_service_directories():
+    """
+    Create all necessary directories and files required by OpenStack services
+    """
+    logger.info("Preparing service directories and files")
+
+    # Create persistent storage directory
+    os.makedirs('/var/lib/openstack', exist_ok=True)
+
+    # Create data directories for each service
+    services_data_dirs = {
+        'keystone': [
+            '/etc/keystone/fernet-keys',
+            '/etc/keystone/credential-keys',
+            '/var/log/keystone'
+        ],
+        'glance': [
+            '/var/lib/glance/images',
+            '/var/log/glance'
+        ],
+        'cinder': [
+            '/var/lib/cinder/volumes',
+            '/var/log/cinder'
+        ],
+        'neutron': [
+            '/var/lib/neutron',
+            '/var/log/neutron'
+        ],
+        'ironic': [
+            '/var/lib/ironic',
+            '/var/log/ironic'
+        ],
+        'nova': [
+            '/var/lib/nova',
+            '/var/lib/nova/instances',
+            '/var/log/nova'
+        ],
+        'horizon': [
+            '/var/log/horizon'
+        ]
+    }
+
+    # Create all required directories
+    for service, dirs in services_data_dirs.items():
+        for directory in dirs:
+            os.makedirs(directory, exist_ok=True)
+            logger.info(f"Created directory: {directory}")
+
+    # Initialize Keystone fernet keys
+    init_keystone_fernet_keys()
+
+    # Create image storage directories for Glance
+    glance_image_dir = '/var/lib/glance/images'
+    os.makedirs(glance_image_dir, exist_ok=True)
+    os.chmod(glance_image_dir, 0o750)  # Secure permissions for image storage
+
+    # Create cinder volume directory
+    cinder_volumes_dir = '/var/lib/cinder/volumes'
+    os.makedirs(cinder_volumes_dir, exist_ok=True)
+
+    # Create Nova instances directory
+    nova_instances_dir = '/var/lib/nova/instances'
+    os.makedirs(nova_instances_dir, exist_ok=True)
+
+    # Create directories for application credentials
+    app_creds_dir = '/var/lib/openstack/app_credentials'
+    os.makedirs(app_creds_dir, exist_ok=True)
+
+    logger.info("All service directories created successfully")
+
+def init_keystone_fernet_keys():
+    """
+    Initialize Keystone fernet keys for token encryption
+    """
+    logger.info("Initializing Keystone fernet keys")
+
+    # Fernet keys for tokens
+    fernet_keys_dir = '/etc/keystone/fernet-keys'
+    os.makedirs(fernet_keys_dir, exist_ok=True)
+
+    # Create initial fernet key (key 0)
+    if not os.path.exists(os.path.join(fernet_keys_dir, '0')):
+        try:
+            run_command(['keystone-manage', 'fernet_setup', '--keystone-user', 'root', '--keystone-group', 'root'])
+            logger.info("Keystone fernet keys created successfully")
+        except subprocess.CalledProcessError as e:
+            logger.error(f"Failed to create Keystone fernet keys: {e}")
+            # Create a minimal key manually if command fails
+            with open(os.path.join(fernet_keys_dir, '0'), 'w') as f:
+                f.write('c_7Q3FIUcWR7vJUMgCJ42CWpV8s_Q27wnXP91c3-fc=')  # Example fernet key
+            logger.info("Created a fallback fernet key manually")
+
+    # Credential keys
+    credential_keys_dir = '/etc/keystone/credential-keys'
+    os.makedirs(credential_keys_dir, exist_ok=True)
+
+    # Create initial credential key
+    if not os.path.exists(os.path.join(credential_keys_dir, '0')):
+        try:
+            run_command(['keystone-manage', 'credential_setup', '--keystone-user', 'root', '--keystone-group', 'root'])
+            logger.info("Keystone credential keys created successfully")
+        except subprocess.CalledProcessError as e:
+            logger.error(f"Failed to create Keystone credential keys: {e}")
+            # Create a minimal key manually if command fails
+            with open(os.path.join(credential_keys_dir, '0'), 'w') as f:
+                f.write('c_7Q3FIUcWR7vJUMgCJ42CWpV8s_Q27wnXP91c3-fc=')  # Example key
+            logger.info("Created a fallback credential key manually")
+
+    # Set proper permissions
+    for directory in [fernet_keys_dir, credential_keys_dir]:
+        for root, dirs, files in os.walk(directory):
+            for f in files:
+                os.chmod(os.path.join(root, f), 0o600)  # Secure permissions for keys
+
+    logger.info("Keystone encryption keys initialized")
+
 def main():
     """Main entrypoint function"""
     logger.info("Starting OpenStack services container")
+
+    # Prepare service directories
+    prepare_service_directories()
 
     # Configure all services
     configure_keystone()

@@ -91,26 +91,30 @@ ENV KEYSTONE_DB_HOST=localhost \
     GLANCE_DB_HOST=localhost \
     GLANCE_DB_USER=glance \
     GLANCE_DB_PASSWORD=glance \
+    GLANCE_APP_CRED_SECRET=glance-secret \
     CINDER_DB_HOST=localhost \
     CINDER_DB_USER=cinder \
     CINDER_DB_PASSWORD=cinder \
+    CINDER_APP_CRED_SECRET=cinder-secret \
     NEUTRON_DB_HOST=localhost \
     NEUTRON_DB_USER=neutron \
     NEUTRON_DB_PASSWORD=neutron \
+    NEUTRON_APP_CRED_SECRET=neutron-secret \
     IRONIC_DB_HOST=localhost \
     IRONIC_DB_USER=ironic \
     IRONIC_DB_PASSWORD=ironic \
+    IRONIC_APP_CRED_SECRET=ironic-secret \
     NOVA_DB_HOST=localhost \
     NOVA_DB_USER=nova \
     NOVA_DB_PASSWORD=nova \
+    NOVA_APP_CRED_SECRET=nova-secret \
+    HORIZON_DB_HOST=localhost \
+    HORIZON_APP_CRED_SECRET=horizon-secret \
     HORIZON_SECRET_KEY=supersecret \
-    OPENSTACK_DEFAULT_DB_TYPE=sqlite \
-    ENABLE_APPLICATION_CREDENTIALS=true \
-    SERVICE_PROJECT_NAME=service \
-    SERVICE_PROJECT_DOMAIN=Default
+    OPENSTACK_DEFAULT_DB_TYPE=sqlite
 
 # Volume for persistent data
-VOLUME ["/var/lib/openstack"]
+VOLUME ["/var/lib/openstack", "/etc/keystone", "/var/lib/glance", "/var/lib/cinder", "/var/lib/nova", "/var/lib/ironic", "/var/lib/neutron"]
 
 # Expose ports
 EXPOSE 80 5000 9292 8774 8775 8776 9696 6385

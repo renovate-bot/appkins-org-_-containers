@@ -56,7 +56,13 @@ RUN pip install \
     oslo.db \
     oslo.middleware \
     oslo.policy \
-    mod-wsgi-httpd
+    keystoneauth1 \
+    cryptography \
+    uvicorn \
+    asgiref \
+    starlette \
+    fastapi \
+    gunicorn
 
 # Create config directory
 RUN mkdir -p /app/config

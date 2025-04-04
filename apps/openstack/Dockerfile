@@ -1,6 +1,6 @@
 # syntax=docker/dockerfile:1
 
-FROM docker.io/python:3.10-alpine as dev
+FROM docker.io/chainguard/python:latest-dev as dev
 
 WORKDIR /app
 
@@ -75,7 +75,7 @@ RUN pip show keystone | grep Location | awk '{print $2}' | xargs -I{} find {} -n
     pip show ironic | grep Location | awk '{print $2}' | xargs -I{} find {} -name "ironic.conf.sample" -exec cp {} /app/config/ironic.conf \; && \
     pip show nova | grep Location | awk '{print $2}' | xargs -I{} find {} -name "nova.conf.sample" -exec cp {} /app/config/nova.conf \;
 
-FROM docker.io/python:3.10-alpine
+FROM docker.io/chainguard/python:latest
 
 WORKDIR /app
 
@@ -86,8 +86,10 @@ ENV PATH="/app/venv/bin":$PATH
 # Copy configuration files
 COPY --from=dev /app/config/ /app/config/
 
-# Copy entrypoint script
+# Copy entrypoint script and healthcheck script
 COPY entrypoint.py /app/entrypoint.py
+COPY healthcheck.py /app/healthcheck.py
+RUN chmod +x /app/healthcheck.py
 
 # Default environment variables
 ENV KEYSTONE_DB_HOST=localhost \
@@ -124,5 +126,8 @@ VOLUME ["/var/lib/openstack", "/etc/keystone", "/var/lib/glance", "/var/lib/cind
 
 # Expose ports
 EXPOSE 80 5000 9292 8774 8775 8776 9696 6385
+
+# Add healthcheck using the Python script
+HEALTHCHECK --interval=30s --timeout=10s --start-period=120s --retries=3 CMD python /app/healthcheck.py
 
 ENTRYPOINT ["python", "/app/entrypoint.py"]

@@ -16,8 +16,9 @@ import secrets
 import asyncio
 import uvicorn
 import multiprocessing
-from starlette.applications import Starlette
-from starlette.routing import Mount
+from fastapi import FastAPI, Request
+from fastapi.routing import Mount
+from fastapi.responses import PlainTextResponse
 from cryptography.fernet import Fernet
 from keystoneauth1 import session
 from keystoneauth1.identity import v3
@@ -886,7 +887,7 @@ APPLICATION_CREDENTIAL_SETTINGS = {{
         sys.exit(1)
 
 def start_services():
-    """Start all OpenStack services using a unified Starlette app with Gunicorn+UvicornWorker"""
+    """Start all OpenStack services using a unified FastAPI app with Gunicorn+UvicornWorker"""
     logger.info("Starting OpenStack services")
 
     # Create unified ASGI application for web services
@@ -906,9 +907,9 @@ def start_services():
 import os
 import sys
 import logging
-from starlette.applications import Starlette
-from starlette.routing import Mount
-from starlette.responses import PlainTextResponse
+from fastapi import FastAPI, Request
+from fastapi.routing import Mount
+from fastapi.responses import PlainTextResponse
 
 # Set up logging
 logging.basicConfig(level=logging.INFO)
@@ -980,8 +981,8 @@ routes = [
     Mount(service_paths['horizon'], app=horizon_app),
 ]
 
-# Create the unified Starlette app with all routes
-application = Starlette(debug=False, routes=routes)
+# Create the unified FastAPI app with all routes
+application = FastAPI(debug=False, routes=routes)
 """)
 
     unified_cmd = [
@@ -1298,19 +1299,30 @@ def create_horizon_asgi_app():
 
 def create_unified_openstack_app():
     """
-    Create a unified Starlette application that mounts all OpenStack services
+    Create a unified FastAPI application that mounts all OpenStack services
     at their appropriate URLs following the DevStack/standard OpenStack path conventions
     """
     logger.info("Creating unified OpenStack ASGI application")
 
-    # Create a base Starlette application
-    from starlette.applications import Starlette
-    from starlette.routing import Mount
-    from starlette.responses import PlainTextResponse
+    # Create a base FastAPI application with metadata for auto-documentation
+    app = FastAPI(
+        title="OpenStack API Gateway",
+        description="Unified API Gateway for OpenStack Services",
+        version="1.0.0",
+        docs_url="/docs",
+        redoc_url="/redoc",
+        openapi_url="/openapi.json"
+    )
 
     # Fallback handler for the root path
-    async def homepage(request):
+    @app.get("/", tags=["Root"])
+    async def homepage():
         return PlainTextResponse("OpenStack Unified API Gateway")
+
+    # Health check endpoint
+    @app.get("/healthz", tags=["Health"])
+    async def health_check():
+        return {"status": "healthy", "services": ["keystone", "horizon"]}
 
     # Dictionary mapping OpenStack services to their default URL prefixes
     service_paths = {
@@ -1381,10 +1393,28 @@ def create_unified_openstack_app():
         Mount(service_paths['horizon'], app=horizon_app),
     ]
 
-    # Create the unified Starlette app with all routes
-    app = Starlette(debug=False, routes=routes)
+    # Add mounts to the FastAPI app
+    app.routes.extend(routes)
 
-    logger.info("Unified OpenStack ASGI application created")
+    # Middleware for handling errors and logging
+    @app.middleware("http")
+    async def log_requests(request: Request, call_next):
+        start_time = time.time()
+
+        try:
+            response = await call_next(request)
+            process_time = time.time() - start_time
+            response.headers["X-Process-Time"] = str(process_time)
+            logger.info(f"Request {request.method} {request.url.path} completed in {process_time:.4f}s")
+            return response
+        except Exception as e:
+            logger.error(f"Request {request.method} {request.url.path} failed: {e}")
+            return PlainTextResponse(
+                content=f"Internal Server Error: {str(e)}",
+                status_code=500
+            )
+
+    logger.info("Unified OpenStack ASGI application created with FastAPI")
     return app
 
 def main():

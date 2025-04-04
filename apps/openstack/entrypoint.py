@@ -376,6 +376,40 @@ def configure_glance():
         logger.error(f"Failed to sync Glance database: {e}")
         sys.exit(1)
 
+def get_transport_url():
+    """Generate RabbitMQ transport URL from environment variables"""
+    ssl = os.environ.get('RABBITMQ_USE_SSL', 'false').lower() == 'true'
+    protocol = 'rabbit'
+    if ssl:
+        protocol = 'rabbit+ssl'
+        # Add SSL options if files are specified
+        ssl_opts = []
+        if os.environ.get('RABBITMQ_SSL_CA_FILE'):
+            ssl_opts.append(f"ssl_ca_file={os.environ['RABBITMQ_SSL_CA_FILE']}")
+        if os.environ.get('RABBITMQ_SSL_CERT_FILE'):
+            ssl_opts.append(f"ssl_cert_file={os.environ['RABBITMQ_SSL_CERT_FILE']}")
+        if os.environ.get('RABBITMQ_SSL_KEY_FILE'):
+            ssl_opts.append(f"ssl_key_file={os.environ['RABBITMQ_SSL_KEY_FILE']}")
+        ssl_params = '&'.join(ssl_opts)
+        if ssl_params:
+            ssl_params = '?' + ssl_params
+    else:
+        ssl_params = ''
+
+    return f"{protocol}://{os.environ.get('RABBITMQ_USER', 'guest')}:{os.environ.get('RABBITMQ_PASSWORD', 'guest')}@{os.environ.get('RABBITMQ_HOST', 'localhost')}:{os.environ.get('RABBITMQ_PORT', '5672')}/{os.environ.get('RABBITMQ_VHOST', '/')}{ssl_params}"
+
+def configure_messaging(config, section='oslo_messaging_rabbit'):
+    """Configure Oslo messaging settings in a config file"""
+    if section not in config:
+        config[section] = {}
+
+    transport_url = get_transport_url()
+    config[section]['transport_url'] = transport_url
+    config[section]['rabbit_retry_interval'] = '1'
+    config[section]['rabbit_retry_backoff'] = '2'
+    config[section]['rabbit_max_retries'] = '0'  # unlimited retries
+    config[section]['rabbit_ha_queues'] = 'true'
+
 def configure_cinder():
     """Configure Cinder service"""
     logger.info("Configuring Cinder")
@@ -384,6 +418,17 @@ def configure_cinder():
 
     # Configure Cinder to use application credentials
     configure_service_with_application_credential(config_path, 'cinder')
+
+    # Read the current config
+    config = configparser.ConfigParser()
+    config.read(config_path)
+
+    # Configure RabbitMQ settings
+    configure_messaging(config)
+
+    # Write updated config
+    with open(config_path, 'w') as f:
+        config.write(f)
 
     try:
         run_command(['cinder-manage', 'db', 'sync'])
@@ -395,16 +440,21 @@ def configure_neutron():
     """Configure Neutron service"""
     logger.info("Configuring Neutron")
     config_path = merge_config(CONFIG_FILES['neutron'], 'neutron')
-
-    # Configure database
     configure_database_connection(config_path, 'neutron')
-
-    # Re-read the config after configuration
-    config = configparser.ConfigParser()
-    config.read(config_path)
 
     # Configure Neutron to use application credentials
     configure_service_with_application_credential(config_path, 'neutron')
+
+    # Read the current config
+    config = configparser.ConfigParser()
+    config.read(config_path)
+
+    # Configure RabbitMQ settings
+    configure_messaging(config)
+
+    # Write updated config
+    with open(config_path, 'w') as f:
+        config.write(f)
 
     # Check if we're using SQLite
     is_sqlite = False
@@ -527,10 +577,62 @@ def configure_ironic():
     # Configure Ironic to use application credentials
     configure_service_with_application_credential(config_path, 'ironic')
 
+    # Read the current config
+    config = configparser.ConfigParser()
+    config.read(config_path)
+
+    # Configure RabbitMQ settings
+    configure_messaging(config)
+
+    # Write updated config
+    with open(config_path, 'w') as f:
+        config.write(f)
+
+    # Check if we're using SQLite
+    is_sqlite = False
+    if 'database' in config and 'connection' in config['database']:
+        db_connection = config['database']['connection']
+        is_sqlite = 'sqlite' in db_connection.lower()
+    else:
+        # Assume SQLite if no connection string is specified
+        is_sqlite = True
+
     try:
-        run_command(['ironic-dbsync', '--config-file', config_path, 'create_schema'])
+        if is_sqlite:
+            # For SQLite, check if the database file exists and has tables
+            db_path = '/var/lib/openstack/ironic.sqlite'
+            if not os.path.exists(db_path):
+                logger.info("No existing Ironic database found, creating schema")
+                run_command(['ironic-dbsync', '--config-file', config_path, 'create_schema'])
+            else:
+                # Check if the schema version table exists
+                import sqlite3
+                conn = sqlite3.connect(db_path)
+                cursor = conn.cursor()
+                cursor.execute("SELECT name FROM sqlite_master WHERE type='table' AND name='alembic_version'")
+                has_version_table = cursor.fetchone() is not None
+                conn.close()
+
+                if not has_version_table:
+                    logger.info("Existing database found but no version info, creating schema")
+                    run_command(['ironic-dbsync', '--config-file', config_path, 'create_schema'])
+                else:
+                    logger.info("Existing Ironic database found, running migrations")
+                    run_command(['ironic-dbsync', '--config-file', config_path, 'upgrade'])
+        else:
+            # For other databases, try to upgrade. If it fails due to no schema, create it
+            try:
+                logger.info("Attempting to run Ironic database migrations")
+                run_command(['ironic-dbsync', '--config-file', config_path, 'upgrade'])
+            except subprocess.CalledProcessError:
+                logger.info("Migration failed, creating initial schema")
+                run_command(['ironic-dbsync', '--config-file', config_path, 'create_schema'])
+                logger.info("Running migrations after schema creation")
+                run_command(['ironic-dbsync', '--config-file', config_path, 'upgrade'])
+
+        logger.info("Ironic database configuration completed successfully")
     except subprocess.CalledProcessError as e:
-        logger.error(f"Failed to sync Ironic database: {e}")
+        logger.error(f"Failed to configure Ironic database: {e}")
         sys.exit(1)
 
 def configure_nova():
@@ -541,6 +643,17 @@ def configure_nova():
 
     # Configure Nova to use application credentials
     configure_service_with_application_credential(config_path, 'nova')
+
+    # Read the current config
+    config = configparser.ConfigParser()
+    config.read(config_path)
+
+    # Configure RabbitMQ settings
+    configure_messaging(config)
+
+    # Write updated config
+    with open(config_path, 'w') as f:
+        config.write(f)
 
     # Configure Nova to use local Ironic instance
     config = configparser.ConfigParser()

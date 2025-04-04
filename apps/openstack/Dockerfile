@@ -116,7 +116,16 @@ ENV KEYSTONE_DB_HOST=localhost \
     HORIZON_DB_HOST=localhost \
     HORIZON_APP_CRED_SECRET=horizon-secret \
     HORIZON_SECRET_KEY=supersecret \
-    OPENSTACK_DEFAULT_DB_TYPE=sqlite
+    OPENSTACK_DEFAULT_DB_TYPE=sqlite \
+    RABBITMQ_HOST=localhost \
+    RABBITMQ_PORT=5672 \
+    RABBITMQ_USER=guest \
+    RABBITMQ_PASSWORD=guest \
+    RABBITMQ_VHOST=/ \
+    RABBITMQ_USE_SSL=false \
+    RABBITMQ_SSL_CA_FILE="" \
+    RABBITMQ_SSL_CERT_FILE="" \
+    RABBITMQ_SSL_KEY_FILE=""
 
 # Volume for persistent data
 VOLUME ["/var/lib/openstack", "/etc/keystone", "/var/lib/glance", "/var/lib/cinder", "/var/lib/nova", "/var/lib/ironic", "/var/lib/neutron"]

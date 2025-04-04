@@ -5,24 +5,24 @@ FROM docker.io/chainguard/python:latest-dev as dev
 WORKDIR /app
 
 # Install build dependencies
-RUN apk add --no-cache \
-    build-base \
-    libtool \
-    autoconf \
-    automake \
-    gcc \
-    musl-dev \
-    python3-dev \
-    linux-headers \
-    postgresql-dev \
-    libffi-dev \
-    openssl-dev \
-    git \
-    expat-dev \
-    apr-dev \
-    apr-util-dev \
-    pcre-dev \
-    zlib-dev
+# RUN apk add --no-cache \
+#     build-base \
+#     libtool \
+#     autoconf \
+#     automake \
+#     gcc \
+#     musl-dev \
+#     python3-dev \
+#     linux-headers \
+#     postgresql-dev \
+#     libffi-dev \
+#     openssl-dev \
+#     git \
+#     expat-dev \
+#     apr-dev \
+#     apr-util-dev \
+#     pcre-dev \
+#     zlib-dev
 
 # Create and activate virtual environment
 RUN python -m venv venv
@@ -49,7 +49,6 @@ RUN pip install \
     nova \
     sqlalchemy \
     psycopg2-binary \
-    pymysql \
     python-memcached \
     oslo.config \
     oslo.messaging \

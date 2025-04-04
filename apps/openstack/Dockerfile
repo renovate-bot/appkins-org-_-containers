@@ -86,9 +86,7 @@ ENV PATH="/app/venv/bin":$PATH
 COPY --from=dev /app/config/ /app/config/
 
 # Copy entrypoint script and healthcheck script
-COPY entrypoint.py /app/entrypoint.py
-COPY healthcheck.py /app/healthcheck.py
-RUN chmod +x /app/healthcheck.py
+COPY entrypoint.py healthcheck.py /app/
 
 # Default environment variables
 ENV KEYSTONE_DB_HOST=localhost \

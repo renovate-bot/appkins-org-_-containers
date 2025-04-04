@@ -56,7 +56,7 @@ jobs:
           echo "files=${files}" >> $GITHUB_OUTPUT
 
   release:
-    name: Release Helm charts
+    name: Release Docker Images
     runs-on: ubuntu-latest
     permissions:
       contents: write

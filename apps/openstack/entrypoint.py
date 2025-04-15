@@ -908,10 +908,13 @@ print("Nova main database schema created successfully")
 
 def configure_horizon():
     """Configure Horizon dashboard"""
+    from distutils.sysconfig import get_python_lib
+
     logger.info("Configuring Horizon")
 
     # Create local_settings.py with correct configuration
-    settings_path = '/etc/openstack-dashboard/local_settings.py'
+    # settings_path = '/etc/openstack-dashboard/local_settings.py'
+    settings_path = os.path.join(get_python_lib(), 'openstack_dashboard', 'local', 'local_settings.py')
 
     # Check if horizon application credential exists
     app_cred_file = '/var/lib/openstack/app_credentials/horizon_app_cred.json'
@@ -1013,7 +1016,7 @@ def start_services():
     # Start unified API Gateway with Gunicorn+UvicornWorker (port 80)
     logger.info("Starting unified OpenStack API Gateway with Gunicorn+UvicornWorker")
     # Create a temporary Python module that imports the app
-    unified_module_path = '/tmp/openstack_app.py'
+    unified_module_path = '/app/openstack_app.py'
     with open(unified_module_path, 'w') as f:
         f.write("""
 # Unified OpenStack ASGI application module for Gunicorn
@@ -1036,17 +1039,13 @@ async def homepage(request):
 
 # Keystone (Identity) app
 try:
-    # First try native ASGI
-    try:
-        from keystone.server import asgi as keystone_asgi
-        keystone_app = keystone_asgi.application
-        logger.info("Using native Keystone ASGI application")
-    except ImportError:
-        # Fallback to WSGI adapter
-        from asgiref.wsgi import WsgiToAsgiMiddleware
-        from keystone.server import wsgi as keystone_wsgi
-        keystone_app = WsgiToAsgiMiddleware(keystone_wsgi.application)
-        logger.info("Using WSGI-to-ASGI adapter for Keystone")
+    import threading
+    from keystone.server import asgi as keystone_wsgi
+    keystone_app = None
+    with threading.Lock():
+        if keystone_app is None:
+            keystone_app = keystone_wsgi.initialize_public_application()
+    logger.info("Using native Keystone ASGI application")
 except Exception as e:
     logger.error(f"Failed to create Keystone app: {e}")
     async def keystone_fallback(scope, receive, send):
@@ -1340,11 +1339,10 @@ def create_keystone_asgi_app():
 
         # If native support is not available, create a simple ASGI app that
         # forwards requests to the WSGI application using an adapter
-        from asgiref.wsgi import WsgiToAsgiMiddleware
+        from asgiref.wsgi import WsgiToAsgi
         from keystone.server import wsgi as keystone_wsgi
 
-        wsgi_app = keystone_wsgi.application
-        asgi_app = WsgiToAsgiMiddleware(wsgi_app)
+        asgi_app = WsgiToAsgi(keystone_wsgi.initialize_public_application())
         logger.info("Created ASGI adapter for Keystone WSGI application")
         return asgi_app
 
@@ -1453,17 +1451,10 @@ def create_unified_openstack_app():
 
     # Keystone (Identity) app
     try:
-        # First try native ASGI
-        try:
-            from keystone.server import asgi as keystone_asgi
-            keystone_app = keystone_asgi.application
-            logger.info("Using native Keystone ASGI application")
-        except ImportError:
-            # Fallback to WSGI adapter
-            from asgiref.wsgi import WsgiToAsgiMiddleware
-            from keystone.server import wsgi as keystone_wsgi
-            keystone_app = WsgiToAsgiMiddleware(keystone_wsgi.application)
-            logger.info("Using WSGI-to-ASGI adapter for Keystone")
+        from asgiref.wsgi import WsgiToAsgi
+        from keystone.server import wsgi as keystone_wsgi
+        keystone_app = WsgiToAsgi(keystone_wsgi.application)
+        logger.info("Using WSGI-to-ASGI adapter for Keystone")
     except Exception as e:
         logger.error(f"Failed to create Keystone app: {e}")
         async def keystone_fallback(scope, receive, send):

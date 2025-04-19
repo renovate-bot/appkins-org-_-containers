@@ -1,0 +1,42 @@
+name: Upload Talos images to GitHub Container Registry
+on:
+  workflow_dispatch:
+    inputs:
+      schematicId:
+        description: "Schematic ID"
+        required: true
+        default: "69c0f32290e5f1abe266a219fbee33ff9f659fd49820452e47d626b86e292b4a"
+      talosVersion:
+        description: "Talos Version"
+        required: true
+        default: "1.9.5"
+      kubernetesSemanticVersion:
+        description: "Kubernetes Semantic Version"
+        required: true
+        default: "v1.32.0"
+
+env:
+  REGISTRY: ghcr.io
+jobs:
+  buildImage:
+    runs-on: ubuntu-latest
+    permissions:
+        contents: read
+        packages: write
+    steps:
+      - name: Download the Talos image
+        run: |
+          set -x
+          wget https://factory.talos.dev/image/${{ inputs.schematicId }}/v${{ inputs.talosVersion }}/metal-arm64.raw.zst
+
+      - name: Log in to the Container registry
+        uses: docker/login-action@v3
+        with:
+          registry: ghcr.io
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Push the images
+        run: |
+          oras version
+          oras push ghcr.io/${{ github.repository }}/talos-metal:${{ inputs.kubernetesSemanticVersion }}.zs --artifact-type application/vnd.acme.rocket.config metal-arm64.raw.zst

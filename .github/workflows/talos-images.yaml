@@ -24,6 +24,10 @@ jobs:
         contents: read
         packages: write
     steps:
+      - uses: oras-project/setup-oras@v1
+        with:
+          version: 1.0.0
+
       - name: Download the Talos image
         run: |
           set -x

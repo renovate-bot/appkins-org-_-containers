@@ -4,15 +4,15 @@ on:
     inputs:
       schematicId:
         description: "Schematic ID"
-        required: true
+        required: false
         default: "69c0f32290e5f1abe266a219fbee33ff9f659fd49820452e47d626b86e292b4a"
       talosVersion:
         description: "Talos Version"
-        required: true
+        required: false
         default: "1.9.5"
       kubernetesSemanticVersion:
         description: "Kubernetes Semantic Version"
-        required: true
+        required: false
         default: "v1.32.0"
 
 env:
@@ -31,7 +31,16 @@ jobs:
       - name: Download the Talos image
         run: |
           set -x
-          wget https://factory.talos.dev/image/${{ inputs.schematicId }}/v${{ inputs.talosVersion }}/metal-arm64.raw.zst
+          # wget https://factory.talos.dev/image/${{ inputs.schematicId }}/v${{ inputs.talosVersion }}/metal-arm64.raw.zst
+          # crane export ghcr.io/siderolabs/overlays:v1.9.2 | tar x -O overlays.yaml | yq '.overlays[] | select(.name=="rpi_generic")
+          mkdir -p _out
+          docker run --rm -t -v "${PWD}/_out":/out -v /dev:/dev --privileged ghcr.io/siderolabs/imager:v${{ inputs.talosVersion }} rpi_generic \
+                     --arch arm64 --overlay-image ghcr.io/siderolabs/sbc-raspberrypi:v0.1.0@sha256:849ace01b9af514d817b05a9c5963a35202e09a4807d12f8a3ea83657c76c863 \
+                     --overlay-name=rpi_generic \
+                     --extra-kernel-arg net.ifnames=0 \
+                     --extra-kernel-arg=-console \
+                     --extra-kernel-arg=console=ttyS1 \
+                     --extra-kernel-arg=-talos.config=http://10.0.40.50061/userdata
 
       - name: Log in to the Container registry
         uses: docker/login-action@v3
@@ -43,4 +52,4 @@ jobs:
       - name: Push the images
         run: |
           oras version
-          oras push ghcr.io/${{ github.repository }}/talos-metal:${{ inputs.kubernetesSemanticVersion }}.zs --artifact-type application/vnd.acme.rocket.config metal-arm64.raw.zst
+          oras push ghcr.io/${{ github.repository }}/talos-metal:${{ inputs.kubernetesSemanticVersion }}.xz --artifact-type application/vnd.acme.rocket.config _out/metal-arm64.raw.xz

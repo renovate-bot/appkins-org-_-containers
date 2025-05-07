@@ -1,0 +1,11 @@
+---
+app: keystone
+base: false
+semantic_versioning: true
+channels:
+  - name: latest
+    platforms: ["linux/amd64"]
+    stable: true
+    tests:
+      enabled: false
+      type: web

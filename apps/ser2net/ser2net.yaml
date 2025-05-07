@@ -1,0 +1,435 @@
+%YAML 1.1
+---
+#
+# This is a ser2net configuration file, showing examples of all
+# sorts of things.  It's all commented out so it's safe to put
+# in /etc/ser2net/ser2net.yaml.
+#
+# This is described in ser2net.yaml(5)
+#
+# NOTE: ser2net can parse two types of yaml files, called version 1
+# and version 2 files.  You cannot mix things from these versions.
+# See the man page for details, and the end of this file (search for
+# "VERSION 2" for a version 2 example.  Everything up to that point
+# is version 1 only.  Version 1 is not yaml compliant and can't be
+# parsed by a normal yaml parser.  Version 2 is yaml compliant.
+
+# YAML gives an error on empty files, just add something so the
+# error doesn't happen.
+define: &confver 1.0
+# # You can include other files from here, only at the main level.
+# # These must be full yaml files, but are included in context at
+# # this point, with all the defines, connection names, etc.
+# # This can let you have individual connections in individual
+# # files to ease management.  globs are accepted.
+# include: /etc/ser2net/ser2net/*.yaml
+
+# # Just a basic serial port  The con0 is the name of the connection,
+# # each connection must be given a unique name.  The accepter is the
+# # information about how to receive connections, in this case it is
+# # on TCP port 2002.  The connector is what the connection is hooked
+# # to when a connection comes in, in this case serial device /dev/ttyS0
+# # with the given serial parameters.  local means to ignore modem
+# # control lines, and is generally what you want.
+# # Tracing is added here, note the \p, see the ser2net.yaml.5 man page
+# # for details on special string handling.
+connection: &con00
+  accepter: tcp,2012
+  connector: serialdev,/dev/tty.usbserial-210,115200n81,local
+#  trace-both: '/var/log/trace-\p'
+# # Like the above, but with telnet and rfc2217 enabled.  With the
+# # gensio library that ser2net uses, protocols stack, so this stacks
+# # telnet on top of tcp.  It also shows how long complex lines can be broken
+# # up, and that by-path serial ports are no problem in yaml.
+# connection: &con01
+#   accepter: telnet(rfc2217),tcp,2013
+#   connector: serialdev,
+#              /dev/serial/by-path/platform-3f980000.usb-usb-0:1.2:1.0-port0,
+#              9600n81,local
+
+# # Set all baud rates to 115200n81 by default.
+# default:
+#   name: speed
+#   value: 115200n81
+
+# # Enable CLOCAL by default
+# default:
+#   name: local
+#   value: true
+#   class: serialdev
+
+# # Create a secure admin interface on tcp,2000
+# # Enable mdns on it, connect with gtlssh -m admin1
+# admin: &admin1
+#   accepter: mux,certauth,ssl,tcp,2000
+#   options:
+#     mdns: true
+
+# # Define an arbitrary string substitution, we will use this later
+# # for a banner.
+# define: &banner1 This is a banner for port \N(\p)\r\n
+
+# # Create an LED to flash the ACPI standby light on serial activity.
+# led: &led1
+#   driver: sysfs
+#   options:
+#     device: "tpacpi::standby"
+
+# # Create a steady state LED to indicate when a user is connected to the port
+# led: &led2
+#   driver: sysfs
+#   options:
+#     mode: "solid"
+#     device: "connled"
+
+# # This creates an arbitrary string we will use inside other strings.
+# # The quotes are necessary to keep YAML from interpreting the colons.
+# define: &serbase "/dev/serial/by-path/pci-0000:00:1d.0"
+# define: &serUSB0 "*(serbase)-usb-0:1.8.2.4:1.0"
+
+# # A connection on
+# #  /dev/serial/by-path/pci-0000:00:1d.0-usb-0:1.8.2.4:1.0-port0
+# # mapped to tcp port 2002 with telnet enabled.
+# # Note that it is disabled at startup.  You can enable it through
+# # the admin interface or by changing enable to "on" and sending a SIGHUP.
+# # Note that even though this is disabled, you can still access it through
+# # the rotator.
+# connection: &con1
+#   accepter: telnet(rfc2217),tcp,2002
+#   timeout: 0
+#   enable: off
+#   connector: serialdev,*(serUSB0)-port0
+#   options:
+#     banner: *banner1
+#     led-tx: *led1
+#     led-rx: *led1
+#     led-conn: *led2
+
+# # A connection on
+# #  /dev/serial/by-path/pci-0000:00:1d.0-usb-0:1.8.2.4:1.0-port1
+# # mapped to SCTP port 2003.  The baud rate is overridden from the
+# # default we set before.  It also demonstrates how lines can be
+# # continued.
+# # You can access SCTP ports with the gensiot command, to connect
+# # to this one do:
+# #   gensiot telnet,sctp,<host>,2003
+# connection: &con2
+#   accepter: telnet(rfc2217),sctp,2003
+#   timeout: 0
+#   connector: serialdev,*(serUSB0)-port1,9600e71
+#              local=false
+#   options:
+#     banner: *banner1
+
+# #
+# # An IPMI SOL connection.  See the OpenIPMI library for details on
+# # how to configure this.
+# # Note the use of *{} to insert a password from an external file.
+# connection: &ipmicon1
+#   accepter: telnet,tcp,3022
+#   connector: ipmisol,lan -U admin -P *{pwfile} 192.168.27.37,115200
+
+# # A rotator on TCP port 2020.  It will alternate between the
+# # two previous connections.  The "dummy" gensio accepter is
+# # useful in this case if you don't want independent access
+# # to each connection.  This will only be bound to address
+# # 192.168.27.3.
+# rotator: &rot1
+#   accepter: telnet,tcp,192.168.27.3,2020
+#   connections: [
+#     *con1,
+#     *con2
+#   ]
+
+# # Now lets talk about secure connections.  At this stage in the state
+# # of computers, all your connections should be at least encrypted, and
+# # preferably authenticated.
+# #
+# # Note that the examples below use SCTP.  TCP can be substituted.  They
+# # also use the echo gensio, which is useful for testing.
+# #
+# # For encrypted connections to work, you need to use the ssl gensio
+# # over other connections.  This requires a certificate and key, which
+# # reside in /etc/ser2net/ser2net.crt and /etc/ser2net/ser2net.key by
+# # default.  You can, of course, change the defaults or override these
+# # on the accepter line.  Make sure ser2net.key is not readable by
+# # anyone but the user running ser2net, or anyone can see your private
+# # key.  Distribute ser2net.crt to the users so they can authenticate
+# # the server.  You can get your certificate from a certificate
+# # authority for best practice.  Or you can create it yourself.
+# #
+# # To create your own keys, do:
+# #
+# #   gtlssh-keygen --keydir /etc/ser2net --commonname "`hostname`-ser2net" serverkey ser2net
+# #
+# # which will install them in the right place.  Copy ser2net.crt to
+# # the accessing system.  Restart ser2net.  You can then connect with:
+# #
+# #   gensiot telnet,ssl(CA=ser2net.crt),sctp,2004
+# #
+# # Note that the commonname of the key is important because it
+# # makes the subject name of the certificate more unique.  You can really
+# # put anything you want for what you provide to keygen.  That will be the
+# # subject name of the certificate.
+# connection: &con3
+#   accepter: telnet,ssl,sctp,2004
+#   connector: echo
+#   options:
+#     banner: *banner1
+
+# # Authentication with SSL is not shown, but is described in
+# # ser2net.yaml(5).  It's fairly inconvenient.
+
+# # Now do an authenticated connection with certauth.  You need a host
+# # key/certificate pair as in the ssl-only example above.  Then you
+# # need to create /usr/share/ser2net/auth/<user>.  You can create a
+# # file named "password" in that directory and put a password there.
+# # Make sure it's only readable by ser2net!  Or you can create a
+# # directory named /usr/share/ser2net/auth/<user>/allowed_certs,
+# # put the user's gtlssh certificate there, and run
+# #  gtlssh-keygen rehash /usr/share/ser2net/auth/<user>/allowed_certs
+# # Then you can do:
+# #  gtlssh --telnet -p 2005 <user>@<hostname>
+# # and do a normal gtlssh authentication.  See gtlssh(1) for details.
+# connection: &con4
+#   accepter: telnet,mux,certauth(enable-password),ssl,sctp,2005
+#   connector: echo
+#   options:
+#     banner: *banner1
+
+# # If you just want to have encryption and no authentication but you want
+# # to use gtlssh for login, you set allow-authfail
+# # on certauth, which will run the protocol but ignore any failures, and
+# # then you can just log in.  It's easy enough to just handle the
+# # certificate, though, so that's really preferred.
+# connection: &con5
+#   accepter: telnet,mux,certauth(allow-authfail),ssl,sctp,2006
+#   connector: echo
+#   options:
+#     openstr: hello
+#     banner: *banner1
+
+# # The following shows how to quote some strings.  Notice they are all
+# # in single quotes.  If you put them in double quotes, yaml will interpret
+# # the '\' sequences on it's own, and thus ser2net will not be able to
+# # process them.  The yaml rules are complex, and the single quotes are
+# # not necessary in all the instance below, but it's good practice to use
+# # them to avoid confusion.  Notice that you can do '' in a single quote
+# # string to add one single quote.
+# connection: &con6
+#   accepter: tcp,2007
+#   connector: echo
+#   options:
+#     openstr: 'Hello\x20there'
+#     closestr: 'Goodbye\nnow'
+#     banner: '''a Special Banner \d'''
+#     closeon: 'ctrl-a\001nil\000'
+
+# # An example showing mDNS support.  You must add "mdns: true" to enable
+# # mDNS on a port to enable it.  By default it uses the name for the mDNS
+# # name and "_iostream._xxx" for the type, where xxx is either tcp, udp
+# # or sctp base on the gensio type.  Everything else defaults.  Don't
+# # set mdns-host or mdns-domain unless you know what you are doing.
+# # mdns-txt can be specified multiple times to add multiple strings.
+# #
+# # mdns-sysattrs on Linux adds USB attributes to the txt data from
+# # sysfs.  If the serial port is a USB one, it will add the following
+# # txt fields:
+# #   devicetype=serialusb
+# #   bInterfaceNumber=...
+# #   interface=...
+# #   idProduct=...
+# #   idVendor=...
+# #   serial=...
+# #   manufacturer=...
+# #   product=...
+# # These fields are pulled straight from sysfs, see information on that
+# # for details on what these mean.  Not all the fields may be present
+# # depending on the specific USB device.  If you set this on a non-USB
+# # serial port, it will just add:
+# #   devicetype=serial
+# # This may be extended in the future for other OSes or other device
+# # interfaces.
+# connection: &rack-3-slot-5
+#   accepter: tcp,2034
+#   connector: echo
+#   options:
+#     mdns: true
+#     mdns-interface: -1
+#     mdns-nettype: unspec
+#     mdns-name: rack-3-slot-5
+#     mdns-type: "_iostream._tcp"
+#     mdns-domain: "local"
+#     mdns-host: "myhost.local"
+#     mdns-txt: "server=ser2net"
+#     mdns-txt: "type=echo"
+#     mdns-sysattrs: true
+
+# # An example showing all options and their defaults.  Note that empty
+# # strings are ok for most strings, but not for things that take filenames
+# # or are required to be aliases.
+# connection: &con7
+#   accepter: tcp,2008
+#   connector: echo
+#   options:
+#     kickolduser: false
+#     trace-hexdump: false
+#     trace-timestamp: false
+#     trace-read-hexdump: false
+#     trace-read-timestamp: false
+#     trace-write-hexdump: false
+#     trace-write-timestamp: false
+#     trace-both-hexdump: false
+#     trace-both-timestamp: false
+#     trace-read: <trace read file>
+#     trace-write: <trace write file>
+#     trace-both: <trace both file>
+#     led-rx: <led alias>
+#     led-tx: <led alias>
+#     telnet-brk-on-sync: false
+#     chardelay: false
+#     chardelay-scale: 20
+#     chardelay-min: 1000
+#     chardelay-max: 20000
+#     sendon: ""
+#     dev-to-net-bufsize: 64
+#     net-to-dev-bufsize: 64
+#     max-connections: 1
+#     authdir: <authentication directory>
+#     pamauth: ""
+#     allowed-users: <space separated list of names>
+#     remaddr: <remote address>
+#     connback: <remote connector string>
+#     connback-timeout: <time in seconds>
+#     banner:
+#     signature:
+#     openstr:
+#     closestr:
+#     closeon:
+#     connector-retry-time: 10
+#     accepter-retry-time: 10
+#     mdns: false
+#     mdns-interface: -1
+#     mdns-nettype: unspec
+#     mdns-name: con7
+#     mdns-type: "_iostream._tcp"
+#     mdns-domain: <NULL>
+#     mdns-host: <NULL>
+#     mdns-txt: <NULL>
+
+# VERSION 2
+#
+
+# In a version 2 file, there are six different main maps: defines,
+# defaults, delete_defaults, admins, leds, and connections.  Per YAML,
+# you can only have one of these maps per document.  In each of this
+# is a mapping for each object of that type.
+
+# For defines, that is simply:
+#  <name>:<value>
+# To refer to a define, you use =(<name>), you don't use YAML anchors
+# and references as they don't really work for parsing and recreating.
+# For including files, similarly, you use ={<filename>}.  Don't use "*".
+
+# For everything else, you have the form:
+#  <name>:
+#    <item>: <value>
+# The name is not supplies with &, the name is just given.  Inside of
+# that, everything is pretty much the same as the version 1 connection,
+# led, default, and rotator configuration.
+
+# As with defines, you no longer reference leds (in connections) or
+# connections (in rotators) with a "*".  Instead, just use the name
+# directly without the "*".  That works in version 1, too.
+
+# You may have more than one document in a file.  In YAML a "---"
+# separates two documents in a file.  With this, you can have another
+# set of defines, defaults, connections, etc.  You might, for
+# instance, have different documents in the file for different sets of
+# defaults. The example below starts a new document after ttyS1, for
+# instance.  You can only have one admin interface in a file, though.
+
+# include is supported on version 2 files, but you can only have one
+# per document for legal YAML.
+
+# An example of a version 2 file:
+
+# %YAML 1.1
+# ---
+#
+# defines:
+#   banner1: Connected to port \N(\d)\r\n
+#
+# defaults:
+#   local:
+#     value: true
+#     class: serialdev
+#
+#   mdns:
+#     value: true
+#
+#   mdns-sysattrs:
+#     value: true
+#
+# admins:
+#   admin1:
+#     accepter: mux,certauth,ssl,tcp,2000
+#
+# leds:
+#   led1:
+#     driver: sysfs
+#     options:
+#       device: "input3::capslock"
+#
+# connections:
+#   ttyUSB0:
+#     accepter: telnet(rfc2217),mux,certauth(),ssl,tcp,4001
+#     connector: serialdev,/dev/ttyUSB0,19200n81
+#     options:
+#       banner: =(banner1)
+#       led-tx: led1
+#       led-rx: led1
+#
+#   ttyUSB1:
+#     accepter: telnet(rfc2217),mux,certauth(),ssl,tcp,4002
+#     connector: serialdev,/dev/ttyUSB1,115200n81
+#     options:
+#       banner: =(banner1)
+#       led-tx: led1
+#       led-rx: led1
+#
+#   ttyS0:
+#     accepter: telnet(rfc2217),mux,certauth(),ssl,tcp,3001
+#     connector: serialdev,/dev/ttyUSB0,9600n81
+#     options:
+#       banner: =(banner1)
+#
+#   ttyS1:
+#     accepter: telnet(rfc2217),mux,certauth(),ssl,tcp,3002
+#     connector: serialdev,/dev/ttyS1,9600N81
+#     options:
+#         banner: =(banner1)
+# ---
+# delete_defaults:
+#   local: [serialdev]
+#
+# connections:
+#   ttyS2:
+#     accepter: telnet(rfc2217),mux,certauth(),ssl,tcp,3003
+#     connector: serialdev,/dev/ttyS2,9600N81
+#     options:
+#         banner: =(banner1)
+#
+#   ttyS3:
+#     accepter: telnet(rfc2217),mux,certauth(),ssl,tcp,3004
+#     connector: serialdev,/dev/ttyS3,9600N81
+#     options:
+#         banner: =(banner1)
+#
+# rotators:
+#   rot1:
+#     accepter: tcp,3010
+#     connections: [
+#       ttyUSB0,
+#       ttyUSB1
+#     ]

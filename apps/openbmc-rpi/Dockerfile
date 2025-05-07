@@ -17,7 +17,7 @@ RUN echo "${TZ}" > /etc/timezone && \
         gawk gcc git iputils-ping libacl1 liblz4-dev locales \
         python3 python3-git python3-jinja2 python3-pexpect python3-pip \
         python3-subunit socat texinfo unzip wget xz-utils zstd \
-        g++-14-arm-linux-gnueabi gcc-14-arm-linux-gnueabi cmake && \
+        g++-14-arm-linux-gnueabi gcc-14-arm-linux-gnueabi cmake kas && \
         rm -rf /var/lib/apt/lists/* && \
         locale-gen en_US.UTF-8
 

@@ -18,6 +18,7 @@ RUN cp /var/lib/openstack/etc/glance/glance-api-paste.ini /etc/glance/glance-api
     cp /var/lib/openstack/etc/glance/rootwrap.conf /etc/glance/rootwrap.conf && \
     cp -r /var/lib/openstack/etc/glance/metadefs /etc/glance/metadefs && \
     cp -r /var/lib/openstack/etc/glance/rootwrap.d /etc/glance/rootwrap.d && \
+    chown -R glance:glance /etc/glance && \
     install /var/lib/openstack/bin/uwsgi /usr/bin/uwsgi && \
     install /var/lib/openstack/bin/glance-wsgi-api /usr/bin/glance-wsgi-api && \
     chmod +x /entrypoint.sh

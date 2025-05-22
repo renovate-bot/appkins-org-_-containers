@@ -1,0 +1,2 @@
+#!/command/execlineb -P
+until [ -f /var/lib/maas/rsyslog.conf ]; do sleep 5; done

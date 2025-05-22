@@ -1,0 +1,8 @@
+#!/usr/bin/with-contenv bash
+
+if [ -f /usr/bin/apt ]; then ## Ubuntu
+  apt -qq update && apt -yq install maas
+else
+  echo "**** Unsupported OS ****"
+  exit 1
+fi

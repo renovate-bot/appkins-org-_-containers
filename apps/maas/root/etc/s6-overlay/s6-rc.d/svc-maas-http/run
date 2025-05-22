@@ -1,0 +1,3 @@
+#!/command/execlineb -P
+until [ -f /var/lib/maas/http/nginx.conf ]; do sleep 5; done
+/usr/sbin/nginx -g 'daemon off;' -c /var/lib/maas/http/nginx.conf

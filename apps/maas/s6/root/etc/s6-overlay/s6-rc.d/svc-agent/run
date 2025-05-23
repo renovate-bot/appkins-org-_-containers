@@ -1,0 +1,2 @@
+#!/command/execlineb -P
+s6-envuidgid maas /usr/sbin/maas-agent

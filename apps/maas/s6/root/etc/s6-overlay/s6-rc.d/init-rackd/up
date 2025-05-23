@@ -1,0 +1,3 @@
+if { mkdir -p /etc/maas }
+if { printf 'maas_url:\n- http://localhost:5240/MAAS\n' > /etc/maas/rackd.conf }
+chown maas:maas /etc/maas/rackd.conf

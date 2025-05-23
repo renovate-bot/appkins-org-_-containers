@@ -1,0 +1,3 @@
+if { mkdir -p /etc/maas }
+if { printf 'database_name: %s\ndatabase_pass: %s\ndatabase_port: %s\ndatabase_user: %s\ndatabase_host: %s\n' "${POSTGRES_DB:-maasdb}" "${POSTGRES_PASSWORD:-maas}" "${POSTGRES_PORT:-5432}" "${POSTGRES_USER:-maas}" "${POSTGRES_HOST:-localhost}" | tee /etc/maas/regiond.conf }
+chown maas:maas /etc/maas/regiond.conf

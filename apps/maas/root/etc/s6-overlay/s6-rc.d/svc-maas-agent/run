@@ -1,3 +1,0 @@
-#!/command/execlineb -P
-until [ -f /etc/maas/agent.yaml ]; do sleep 5; done
-s6-envuidgid -D maas:maas: -- /usr/sbin/maas-agent

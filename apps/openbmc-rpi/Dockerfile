@@ -1,4 +1,4 @@
-FROM ubuntu:24.10
+FROM ubuntu:oracular-20250225
 
 ENV DEBIAN_FRONTEND=noninteractive \
     TERM=linux \

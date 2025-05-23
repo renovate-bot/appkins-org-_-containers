@@ -1,9 +1,9 @@
-ARG BASE_OS=22.04
+ARG BASE_OS=24.04
 
 # Download and repack snapd with a replacement squashfs-tools to
 # fix a bug with mksquashfs when packing a built snap.
 # See: https://bugs.launchpad.net/snapd/+bug/1733598
-FROM ubuntu:22.04 AS snapd
+FROM ubuntu:24.04 AS snapd
 
 ENV DEBIAN_FRONTEND=noninteractive
 ENV LDFLAGS=-static

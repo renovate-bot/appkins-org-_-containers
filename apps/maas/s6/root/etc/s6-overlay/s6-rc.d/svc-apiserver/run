@@ -1,3 +1,3 @@
 #!/command/execlineb -P
-until [ -f /etc/maas/regiond.conf ]; do sleep 5; done
-s6-envuidgid maas /usr/sbin/maas-apiserver
+s6-envuidgid maas
+/usr/sbin/maas-apiserver

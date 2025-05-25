@@ -37,10 +37,10 @@ if [[ "${POSTGRES_HOST}" != "$(maas-region local_config_get --database-host | cu
     --database-name "${POSTGRES_DB:-maas}" \
     --database-pass "${POSTGRES_PASSWORD:-maas}" \
     --database-user "${POSTGRES_USER:-maas}"
+
+  /usr/sbin/maas-region dbupgrade
   /usr/bin/systemctl restart bind9
   /usr/bin/systemctl start maas-regiond
-  /usr/bin/systemctl stop postgresql
-  /usr/bin/systemctl disable postgresql
 fi
 
 # Force these environment variables

@@ -1,0 +1,61 @@
+services:
+  maas:
+    build:
+      context: "."
+      #platforms:
+      #  - "linux/amd64"
+      #  - "linux/arm64"
+    container_name: "maas"
+    restart: unless-stopped
+    # platform: linux/arm64
+    ports:
+      - "5240:5240"  # MAAS API
+      - "5241:5241"  # MAAS Web UI
+      - "5242:5242"  # MAAS DHCP
+      - "5243:5243"  # MAAS TFTP
+    environment:
+      - MAAS_DATABASE_URL=postgres://maas:maas@db/maas
+      - MAAS_SECRET_KEY=your-secret-key
+    volumes:
+      - maas_data:/var/lib/maas
+    configs:
+      - source: maas_regiond
+        target: /etc/maas/regiond.conf
+        gid: '106'
+        uid: '103'
+    depends_on:
+      - db
+    networks:
+      - maas
+  db:
+    image: "postgres:latest"
+    container_name: "maas_db"
+    restart: unless-stopped
+    environment:
+      - POSTGRES_USER=maas
+      - POSTGRES_PASSWORD=maas
+      - POSTGRES_DB=maas
+    volumes:
+      - db_data:/var/lib/postgresql/data
+    networks:
+      - maas
+volumes:
+  maas_data:
+    driver: local
+  db_data:
+    driver: local
+configs:
+  maas_regiond:
+    content: |
+      database_host: db
+      database_name: maas
+      database_pass: maas
+      database_port: 5432
+      database_user: maas
+      maas_url: http://172.17.0.2:5240/MAAS
+networks:
+  maas:
+    driver: bridge
+    external: true
+    name: maas
+    attachable: true

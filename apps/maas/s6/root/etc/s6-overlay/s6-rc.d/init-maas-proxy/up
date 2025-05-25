@@ -1,0 +1,2 @@
+if { -f /var/lib/maas/maas-proxy.conf }
+/etc/s6-overlay/s6-rc.d/init-maas-proxy/run

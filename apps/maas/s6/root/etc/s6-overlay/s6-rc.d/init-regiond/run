@@ -1,0 +1,10 @@
+#!/command/with-contenv sh
+POSTGRES_HOST="${POSTGRES_HOST:-localhost}"
+if [[ "${POSTGRES_HOST}" != "$(/usr/sbin/maas-region local_config_get --database-host | cut -d' ' -f2)" ]]; then
+  /usr/sbin/maas-region local_config_set \
+    --database-host "${POSTGRES_HOST}" \
+    --database-name "${POSTGRES_DB:-maas}" \
+    --database-pass "${POSTGRES_PASSWORD:-maas}" \
+    --database-user "${POSTGRES_USER:-maas}"
+fi
+/usr/sbin/maas-region dbupgrade

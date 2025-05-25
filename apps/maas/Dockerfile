@@ -16,13 +16,21 @@ RUN apt update -qq \
            systemd \
     && dpkg-divert --local --rename --add /sbin/udevadm \
     && ln -s /bin/true /sbin/udevadm \
-    && systemctl set-default multi-user.target \
     && apt-add-repository -y ppa:maas/${MAAS_VERSION} \
     && apt update -qq \
-    && apt install -yq maas \
+    && apt install -yq maas-region-api maas-rack-controller \
+    && systemctl set-default multi-user.target \
     && apt-get clean \
     && rm -rf /var/lib/apt/lists/* \
     && echo "maas ALL=(ALL) NOPASSWD:ALL" >> /etc/sudoers
+
+RUN \
+    systemctl disable chrony && \
+    systemctl enable maas-regiond.service && \
+    systemctl enable maas-apiserver.service && \
+    systemctl enable maas-temporal.service && \
+    systemctl enable maas-temporal-worker.service
+
 
 # Set the proper environment.
 ENV container=docker \
@@ -39,4 +47,4 @@ STOPSIGNAL SIGRTMIN+3
 ENTRYPOINT ["/bin/entrypoint.sh"]
 
 # Set our default command
-CMD ["while true; do sleep 30; done;"]
+CMD ["/usr/bin/journalctl", "-f"]

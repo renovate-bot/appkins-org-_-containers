@@ -1,0 +1,4 @@
+#!/command/with-contenv sh
+# shellcheck disable=SC1091
+source /usr/share/maas/maas-proxy-common.sh
+pre_start

@@ -73,8 +73,7 @@ WorkingDirectory=$PWD
 WantedBy=default.target
 EOF
 
-"$systemctl" enable docker-exec.service
-
+"$systemctl" enable docker-exec.service &> /dev/null
 
 # The presence of either .dockerenv or /run/.containerenv cause maas to
 # incorrectly stage more than it should (e.g. libc and systemd). Remove them.
@@ -99,4 +98,10 @@ if [ ! -d /run/lock ]; then
   mount -t tmpfs tmpfs /run/lock
 fi
 
-exec /lib/systemd/systemd --system --log-target="${LOG_TARGET}" --system-unit docker-exec.service
+exec /lib/systemd/systemd \
+  --system \
+  --no-pager \
+  --default-standard-output=/dev/stdout \
+  --default-standard-error=/dev/stderr \
+  --log-target="${LOG_TARGET}" \
+  --system-unit docker-exec.service

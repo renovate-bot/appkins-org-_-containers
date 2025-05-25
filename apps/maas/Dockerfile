@@ -39,4 +39,4 @@ STOPSIGNAL SIGRTMIN+3
 ENTRYPOINT ["/bin/entrypoint.sh"]
 
 # Set our default command
-CMD ["sh", "-c", "while true; do sleep 30; done;"]
+CMD ["while true; do sleep 30; done;"]

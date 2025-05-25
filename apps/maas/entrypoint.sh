@@ -48,7 +48,7 @@ export PATH="/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin:/etc/p
 
 # Run the command
 echo "Executing: '${CMD}'"
-sh -c ''"${CMD}"'' || exit \$?
+sh -c "${CMD}" || exit \$?
 /bin/systemctl exit \$?
 EOF
 chmod +x /usr/local/bin/docker_commandline.sh

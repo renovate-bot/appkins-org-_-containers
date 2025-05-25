@@ -7,6 +7,10 @@ on:
         description: 'List of Dockerfiles'
         required: false
         default: ''
+      platforms:
+        description: 'List of platforms to build for'
+        required: false
+        default: 'linux/amd64,linux/arm64'
   # push:
   #   branches:
   #     - main
@@ -103,5 +107,5 @@ jobs:
         with:
           push: true
           context: "apps/${{ matrix.file }}"
-          platforms: linux/amd64,linux/arm64
+          platforms: ${{ inputs.platforms }}
           tags: ${{ steps.meta.outputs.tags }}

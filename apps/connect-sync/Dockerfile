@@ -1,4 +1,4 @@
-FROM docker.io/library/alpine:3.19 as gcsfuse
+FROM docker.io/library/alpine:3.22 as gcsfuse
 ENV GOPATH=/go
 ARG TARGETARCH
 ARG VERSION

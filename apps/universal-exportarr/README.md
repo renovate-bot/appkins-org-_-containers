@@ -1,4 +1,4 @@
-# envsubst - Docker mod for any container
+# exportarr - Docker mod for the arr suite of containers
 
 ## Custom environment configuration
 

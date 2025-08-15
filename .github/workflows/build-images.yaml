@@ -39,7 +39,7 @@
           run: echo "LOWERCASE_REPO_OWNER=${GITHUB_REPOSITORY_OWNER,,}" >> $GITHUB_ENV
 
         - name: Checkout
-          uses: actions/checkout@v4
+          uses: actions/checkout@v5
           with:
             token: "${{ github.token }}"
 
@@ -127,7 +127,7 @@
             echo "${{ matrix.image.version }}" | grep -E "[a-zA-Z0-9_\.\-]+" || "Image Version is invalid"
 
         - name: Checkout
-          uses: actions/checkout@v4
+          uses: actions/checkout@v5
           with:
             token: "${{ github.token }}"
 

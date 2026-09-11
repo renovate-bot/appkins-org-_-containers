@@ -1,4 +1,4 @@
-FROM quay.io/airshipit/glance:2025.1-ubuntu_noble
+FROM quay.io/airshipit/glance:2025.2-ubuntu_noble
 
 RUN apt update -qq \
     && apt install -yq libpcre3 libpcre3-dev tini \

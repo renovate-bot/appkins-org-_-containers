@@ -1,0 +1,47 @@
+---
+  # yaml-language-server: $schema=https://json.schemastore.org/github-workflow.json
+  name: "Renovate: Auto Approve"
+
+  # Renovate runs as the "renovate-bot" user and raises its PRs from a fork, so a
+  # plain pull_request trigger would only get a read-only token. pull_request_target
+  # runs against the base repo instead; nothing from the PR is checked out or
+  # executed here, only the GitHub API is called.
+  on:
+    pull_request_target:
+      branches: ["main"]
+      types: ["opened", "reopened", "synchronize"]
+
+  permissions:
+    pull-requests: write
+
+  concurrency:
+    group: ${{ github.head_ref }}-renovate-auto-approve
+    cancel-in-progress: true
+
+  jobs:
+    approve:
+      name: Approve Renovate PR
+      runs-on: ubuntu-latest
+      if: ${{ github.event.pull_request.user.login == 'renovate-bot' }}
+      steps:
+        - name: Approve pull request
+          shell: bash
+          env:
+            GITHUB_TOKEN: "${{ github.token }}"
+            PR_URL: "${{ github.event.pull_request.html_url }}"
+            REPO: "${{ github.repository }}"
+            PR_NUMBER: "${{ github.event.pull_request.number }}"
+            HEAD_SHA: "${{ github.event.pull_request.head.sha }}"
+          run: |
+            # Renovate rebases its branches, which fires synchronize again. Skip
+            # when this exact commit already carries our approval, so rebases do
+            # not pile up duplicate reviews.
+            approvals=$(gh api "repos/${REPO}/pulls/${PR_NUMBER}/reviews" \
+              --jq "[.[] | select(.user.login == \"github-actions[bot]\" and .state == \"APPROVED\" and .commit_id == \"${HEAD_SHA}\")] | length")
+
+            if [[ "${approvals}" -gt 0 ]]; then
+              echo "Already approved at ${HEAD_SHA}"
+              exit 0
+            fi
+
+            gh pr review --approve "${PR_URL}"

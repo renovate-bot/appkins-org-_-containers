@@ -1,0 +1,10 @@
+#!/usr/bin/with-contenv bash
+
+if [ -f /sbin/apk ]; then ## Alpine
+  echo "\
+    postgresql-client" >> /mod-repo-packages-to-install.list
+else
+  # PrepArr ships as a musl-linked bun binary. Glibc images cannot run it: the
+  # musl loader alone is not enough, it also wants a musl-linked C++ runtime.
+  echo "**** universal-preparr only supports Alpine based images ****"
+fi

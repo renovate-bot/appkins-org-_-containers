@@ -1,0 +1,40 @@
+#!/usr/bin/with-contenv bash
+# PrepArr init mode: provision the postgres database/user and write config.xml
+# before the app starts. Replaces the preparr-init container.
+
+# shellcheck source=/dev/null
+source /preparr/preparr-env.sh
+
+preparr_runtime_dir
+rm -f "${PREPARR_SKIP_FILE}"
+
+if ! "${PREPARR_BIN}" --version >/dev/null 2>&1; then
+  preparr_log "**** bun cannot run here, this mod needs an Alpine based image ****"
+  touch "${PREPARR_SKIP_FILE}"
+  exit 0
+fi
+
+if ! preparr_common_env; then
+  preparr_log "no supported app found in this container, set SERVARR_TYPE to run anyway"
+  touch "${PREPARR_SKIP_FILE}"
+  exit 0
+fi
+
+if ! preparr_check_required_env; then
+  touch "${PREPARR_SKIP_FILE}"
+  exit 0
+fi
+
+preparr_wait_for_postgres
+
+preparr_log "running init for ${SERVARR_TYPE} (config ${CONFIG_PATH})"
+cd "${PREPARR_HOME}" || exit 0
+
+if s6-setuidgid abc "${PREPARR_BIN}" run "${PREPARR_ENTRYPOINT}" --init; then
+  preparr_log "init completed"
+else
+  # Let the app boot regardless - a mod should never brick its container - but
+  # keep the sidecar parked so it cannot reconcile against a half-built config.
+  preparr_log "**** init failed, the sidecar will stay disabled for this boot ****"
+  touch "${PREPARR_SKIP_FILE}"
+fi

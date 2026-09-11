@@ -1,0 +1,29 @@
+#!/usr/bin/with-contenv bash
+# PrepArr sidecar mode: watch the config file and reconcile the app through its
+# API. Replaces the preparr-sidecar container.
+
+# shellcheck source=/dev/null
+source /preparr/preparr-env.sh
+
+if [[ -f "${PREPARR_SKIP_FILE}" ]]; then
+  preparr_log "init did not complete, sidecar disabled"
+  preparr_park
+fi
+
+preparr_runtime_dir
+
+if ! preparr_common_env || ! preparr_check_required_env; then
+  preparr_log "sidecar disabled"
+  preparr_park
+fi
+
+export CONFIG_WATCH="${CONFIG_WATCH:-true}"
+export CONFIG_RECONCILE_INTERVAL="${CONFIG_RECONCILE_INTERVAL:-60}"
+export HEALTH_PORT="${HEALTH_PORT:-9001}"
+
+preparr_wait_for_app "${PREPARR_WAIT_URL}"
+
+preparr_log "starting sidecar for ${SERVARR_TYPE} (config ${CONFIG_PATH}, health :${HEALTH_PORT})"
+cd "${PREPARR_HOME}" || exit 1
+
+exec s6-setuidgid abc "${PREPARR_BIN}" run "${PREPARR_ENTRYPOINT}"

@@ -1,4 +1,4 @@
-ARG BASE_OS=noble
+ARG BASE_OS=resolute
 # Prepare the filesystem to copy into a blank image
 FROM ubuntu:${BASE_OS}
 

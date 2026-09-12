@@ -1,5 +1,5 @@
 # Stage 1: Builder
-FROM mcr.microsoft.com/dotnet/sdk:8.0 AS builder
+FROM mcr.microsoft.com/dotnet/sdk:11.0 AS builder
 
 # Expose Docker's target architecture variable
 ARG TARGETARCH

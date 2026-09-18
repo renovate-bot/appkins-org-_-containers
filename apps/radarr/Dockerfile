@@ -133,6 +133,10 @@ COPY --from=frontend /src/_output/UI /src/_output/UI
 # Windows-only projects out; publishing the console project directly needs no
 # equivalent.
 #
+# Directory.Build.props finds stylecop.json through SolutionDir, which only a
+# solution build sets; without it StyleCop falls back to defaults and fails the
+# build (SA1200 on every using directive).
+#
 # Radarr expects <dir>/bin/<executable> with package_info in <dir>, the layout
 # every Servarr container uses; the bin directory name is checked, not chosen.
 RUN --mount=type=cache,id=radarr-nuget,target=/root/.nuget/packages \
@@ -144,6 +148,7 @@ RUN --mount=type=cache,id=radarr-nuget,target=/root/.nuget/packages \
       --runtime "${rid}" \
       --self-contained true \
       --output /publish \
+      -p:SolutionDir=/src/src/ \
       -p:AssemblyVersion="${VERSION}" \
       -p:AssemblyConfiguration=master \
       -p:PublishSingleFile=true \

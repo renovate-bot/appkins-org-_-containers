@@ -50,7 +50,7 @@ WORKDIR /src
 
 COPY --from=source /src /src
 
-RUN --mount=type=cache,id=radarr-yarn,target=/usr/local/share/.cache/yarn \
+RUN --mount=type=cache,id=radarr-yarn,target=/usr/local/share/.cache/yarn,sharing=locked \
     yarn install --frozen-lockfile --network-timeout 120000
 
 # Writes _output/UI.
@@ -139,7 +139,19 @@ COPY --from=frontend /src/_output/UI /src/_output/UI
 #
 # Radarr expects <dir>/bin/<executable> with package_info in <dir>, the layout
 # every Servarr container uses; the bin directory name is checked, not chosen.
-RUN --mount=type=cache,id=radarr-nuget,target=/root/.nuget/packages \
+#
+# The NuGet cache is scoped to TARGETARCH because release.yaml passes both
+# platforms to one build, so two copies of this stage run at the same time in
+# one BuildKit. Sharing one cache directory made both restores fail while
+# unpacking packages, each losing a temp file the other had cleaned up. Separate
+# directories keep the two in parallel; sharing=locked serializes the rarer case
+# of two builds of the same architecture at once.
+#
+# Directory.Build.props lists ten RuntimeIdentifiers, and restore fetches a
+# runtime pack for every one, musl and Windows included. Narrowing it to the RID
+# being published is what build.sh does when given -r, and it leaves far less to
+# unpack.
+RUN --mount=type=cache,id=radarr-nuget-${TARGETARCH},target=/root/.nuget/packages,sharing=locked \
     set -eux; \
     rid="$(cat /rid)"; \
     dotnet publish src/NzbDrone.Console/Radarr.Console.csproj \
@@ -149,6 +161,7 @@ RUN --mount=type=cache,id=radarr-nuget,target=/root/.nuget/packages \
       --self-contained true \
       --output /publish \
       -p:SolutionDir=/src/src/ \
+      -p:RuntimeIdentifiers="${rid}" \
       -p:AssemblyVersion="${VERSION}" \
       -p:AssemblyConfiguration=master \
       -p:PublishSingleFile=true \

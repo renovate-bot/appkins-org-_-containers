@@ -1,6 +1,6 @@
 # syntax=docker/dockerfile:1
 
-FROM ghcr.io/robbeverhelst/preparr:0.19.7 AS app
+FROM ghcr.io/robbeverhelst/preparr:0.19.10 AS app
 
 FROM scratch
 
